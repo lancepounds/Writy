@@ -37,3 +37,17 @@ Use non-sensitive test documents:
 - `writy.webmanifest`: PWA installation metadata
 
 The eventual native iOS version will require device testing and a native storage adapter; IndexedDB is a solid foundation for the web/PWA version but is not a substitute for native iOS file storage.
+
+## iPad Safari testing (Writy 0.3)
+
+Before testing, download a backup of any important documents from **Backup → Save backup file**. Safari and an installed home-screen version of Writy can have separate browser storage.
+
+1. Open https://lancepounds.github.io/Writy/writy.html in Safari on your iPad and reload the page. If it appears unchanged, close the page and open it again.
+2. Create a **test document**, write a sentence, confirm **Saved on this device**, and reload. Check that the sentence remains.
+3. Switch between **Word tree**, **Radial dial**, **Drop-down menu**, **Whole phrases**, **Around my cursor**, **One box under it**, and **Bar at the top**. Check for clipped suggestions and tap a word to confirm that exactly one selection is inserted.
+4. Rotate your iPad from portrait to landscape and back while a document is open. Check that no word buttons disappear and that writing and cursor position are preserved.
+5. Toggle **Tablet mode** and Writy's **on-screen keyboard** (if you use it). Verify the editor still has usable space. Also try your iPad's software keyboard with Tablet mode off.
+6. After a successful online load, turn on Airplane Mode and reopen the page without clearing its site data. Verify offline writing, closing/reopening and saving, then reconnect.
+7. If you use VoiceOver, Switch Control, an eye tracker, or an alternative pointer, try the controls you normally use. Automated WebKit simulations **cannot** verify these physical-device interactions.
+
+If something fails, report the layout mode, portrait/landscape, whether Tablet mode and Writy's on-screen keyboard were on, and what appeared to happen. Do not send the text of a private document.
