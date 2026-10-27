@@ -2,7 +2,7 @@
    It keeps a copy of Writy's own files on the device, so Writy opens and works without internet.
    It only looks after Writy (its files all start with "writy"); the rest of the website is not touched.
    When you put a new writy.html on the website, Writy picks it up the next time it opens online. */
-const CACHE = 'writy-offline-2';
+const CACHE = 'writy-offline-3';
 const PAGE = new URL('writy.html', location).href;
 const FILES = ['writy.html', 'writy-store.js', 'writy.webmanifest', 'writy-192.png', 'writy-512.png',
   'writy-maskable-512.png', 'writy-apple-180.png', 'writy-32.png'];
@@ -41,6 +41,18 @@ self.addEventListener('fetch', e => {
         return r;
       })
       .catch(() => caches.match(PAGE).then(r => r || caches.match(req, { ignoreSearch: true }))));
+    return;
+  }
+
+  /* JavaScript storage engine: refresh while online, preserve offline fallback.
+     A cache-first script could leave new HTML calling a stale migration API. */
+  if (url.origin === location.origin && /\/writy-store\.js$/.test(url.pathname)) {
+    e.respondWith(fromNet(req, 4000).then(r => {
+      if (!r.ok) throw new Error('Storage script unavailable');
+      const copy = r.clone();
+      caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+      return r;
+    }).catch(() => caches.match(req).then(hit => hit || fetch(req))));
     return;
   }
 
