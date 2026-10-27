@@ -463,6 +463,17 @@ legend{padding:0 6px;color:var(--link);font-weight:bold;font-size:13px}
 .chkdot{width:14px;height:14px;border-radius:50%;background:var(--chk-ok);flex:0 0 auto}
 @media (max-width:640px){.chkmsg{font-size:15px}.chkctx{font-size:14px}.chkbtn{padding:6px 10px;min-height:40px}.chkbtn.fix{font-size:17px}}
 @media (pointer:coarse){.tabhint,.floatsug .num,.treebox .num,.dialbox .num,.ddmenu .ddw .num{display:none}}
+/* iPad: maintain minimum touch targets in the existing interface, even if
+   Tablet mode has not been enabled. Do not change desktop pointer layouts. */
+@media (pointer:coarse) and (min-width:641px){
+  .toolbar .tbtn{min-height:44px}
+  .navbar .navbtn{width:44px;height:44px}
+  .wmenu .wmitem{min-height:48px}
+}
+/* Keep the XP taskbar's controls above the iPad home indicator. */
+@media (pointer:coarse){
+  .taskbar{height:calc(38px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
+}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto !important}}
 
 /* word panels: the tree, dial and menu are the heart of Writy, so they stand apart from the beige window:
