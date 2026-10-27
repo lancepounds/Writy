@@ -2,9 +2,9 @@
    It keeps a copy of Writy's own files on the device, so Writy opens and works without internet.
    It only looks after Writy (its files all start with "writy"); the rest of the website is not touched.
    When you put a new writy.html on the website, Writy picks it up the next time it opens online. */
-const CACHE = 'writy-offline-1';
+const CACHE = 'writy-offline-2';
 const PAGE = new URL('writy.html', location).href;
-const FILES = ['writy.html', 'writy.webmanifest', 'writy-192.png', 'writy-512.png',
+const FILES = ['writy.html', 'writy-store.js', 'writy.webmanifest', 'writy-192.png', 'writy-512.png',
   'writy-maskable-512.png', 'writy-apple-180.png', 'writy-32.png'];
 
 self.addEventListener('install', e => {
