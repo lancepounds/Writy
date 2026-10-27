@@ -4383,12 +4383,17 @@ function restoreFrom(text){
   flushAll();
   const D=o.data;let added=0,updated=0;
   if(docs.length===1&&docs[0].text===WELCOME&&D.docs.length){goneAdd(docs[0].id,Math.max(Date.now(),(docs[0].updated||0)+1));docs.length=0}
+  /* A backup may intentionally restore a deleted document. Make its revision
+     newer than the deletion tombstone in BOTH localStorage and IndexedDB. */
+  const deletedBeforeRestore=goneGet();
   {const g=goneGet();let gc=false;D.docs.forEach(nd=>{if(nd&&nd.id&&g[nd.id]){delete g[nd.id];gc=true}});if(gc)S.set('sw.gone',g)}
   D.docs.forEach(nd=>{
     if(!nd||typeof nd.text!=='string')return;
-    const ex=docs.find(x=>x.id===nd.id);
-    if(!ex){docs.push({id:nd.id||uid(),title:String(nd.title||'Untitled'),text:nd.text,updated:+nd.updated||Date.now()});added++}
-    else if((+nd.updated||0)>(ex.updated||0)){ex.title=String(nd.title||ex.title);ex.text=nd.text;ex.updated=+nd.updated;updated++}
+    const id=typeof nd.id==='string'&&nd.id?nd.id:uid();
+    const incoming=Math.max(+nd.updated||0,deletedBeforeRestore[id]?Math.max(Date.now(),+deletedBeforeRestore[id]+1):0);
+    const ex=docs.find(x=>x.id===id);
+    if(!ex){docs.push({id,title:String(nd.title||'Untitled'),text:nd.text,updated:incoming||Date.now()});added++}
+    else if(incoming>(ex.updated||0)){ex.title=String(nd.title||ex.title);ex.text=nd.text;ex.updated=incoming;updated++}
   });
   if(Array.isArray(D.phr))D.phr.forEach(p=>{if(typeof p==='string'&&p&&!phrases.includes(p))phrases.push(p)});
   if(Array.isArray(D.dict))D.dict.forEach(w=>{if(typeof w==='string')userDict.add(w)});
