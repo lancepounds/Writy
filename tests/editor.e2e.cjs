@@ -50,7 +50,7 @@ test('previous version can be restored from the Backup screen',async({page})=>{
   await page.locator('.tbtn[data-do=backup]').click();
   await page.getByRole('button',{name:'Previous versions of this document'}).click();
   await page.locator('[data-do=revrestore]').first().click();
-  await page.getByRole('button',{name:'Confirm restore'}).click();
+  await page.getByRole('button',{name:'Confirm restore selected draft'}).click();
   await expect(editor).toHaveValue('Keep this older draft.');
   await saved(page);
   await page.reload();
