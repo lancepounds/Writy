@@ -1,9 +1,10 @@
 HOW TO ADD THE INSTALLABLE WRITY TO YOUR WEBSITE
 
-There are 8 files in this folder. All 8 go in the same folder on your website
+There are 9 application files in this folder. All 9 go in the same folder on your website
 as your current writy.html. The new writy.html replaces the old one.
 
   writy.html                 Writy itself (new version)
+  writy-store.js             Local-first document storage, recovery, and migration
   writy.webmanifest          Tells devices Writy's name and icon, so it can be installed
   writy-sw.js                The offline helper: keeps a copy of Writy on the device
   writy-32.png, writy-192.png, writy-512.png,
@@ -13,7 +14,7 @@ PUT THEM ON GITHUB
   1. Go to github.com and open the repository for your website.
   2. Open the folder that has writy.html in it.
   3. Click "Add file", then "Upload files".
-  4. Drag all 8 files from this folder into the page.
+  4. Drag all 9 application files from this folder into the page.
   5. Click "Commit changes".
   6. Wait a minute or two while GitHub updates your website.
 
@@ -40,10 +41,16 @@ YOUR DOCUMENTS IN THE INSTALLED WRITY
 
 LATER UPDATES
   Just upload the new writy.html the same way. Writy picks it up the next time
-  it opens while you are online. The other 7 files only need uploading once.
+  it opens while you are online. For this release, upload writy-store.js and writy-sw.js too, because saving now uses the new local-first store.
 
 GOOD TO KNOW
   - The offline helper only looks after Writy's own files. The rest of your
     website is not affected.
   - Email, online voices (like the Google voices in Chrome) and webcam eye
     tracking still need internet. Everything else works offline.
+
+LOCAL-FIRST SAVING
+  Documents now save to IndexedDB on this device, while keeping existing
+  localStorage documents as a migration and fallback copy. Use Backup >
+  Previous versions to recover earlier drafts. Download backup files for
+  important writing; clearing site data can still erase browser storage.
