@@ -34,6 +34,38 @@ function normalize(d){
   return{id:d.id,title:String(d.title||'Untitled').slice(0,160),text:d.text,
     updated:Number.isFinite(+d.updated)?+d.updated:Date.now()};
 }
+/* Merge old browser-storage documents into the durable store. This is a pure
+   migration step, so it can be tested without the editor DOM. Never discard
+   either conflicting draft when two copies have equal timestamps. */
+function mergeLegacy(primary,legacy,current,gone){
+  const deleted=Object.assign({},gone||{});
+  for(const [id,time] of Object.entries(primary&&primary.deleted||{})){
+    deleted[id]=Math.max(Number(deleted[id])||0,Number(time)||0);
+  }
+  const merged=new Map();
+  for(const original of primary&&primary.documents||[]){
+    const d=normalize(original);
+    if(d)merged.set(d.id,d);
+  }
+  for(const original of Array.isArray(legacy)?legacy:[]){
+    const d=normalize(original);
+    if(!d)continue;
+    const prior=merged.get(d.id);
+    if(!prior||d.updated>prior.updated)merged.set(d.id,d);
+    else if(d.updated===prior.updated&&(d.text!==prior.text||d.title!==prior.title)){
+      /* Same edit time, different contents: retain the legacy copy separately. */
+      let id;
+      do{id='migration-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)}
+      while(merged.has(id));
+      merged.set(id,{...d,id,title:d.title+' (migration conflict copy)'});
+    }
+  }
+  const documents=[...merged.values()].filter(d=>!(deleted[d.id]>=d.updated));
+  const selected=documents.some(d=>d.id===current)?current:
+    documents.some(d=>d.id===(primary&&primary.current))?primary.current:
+    documents.slice().sort((a,b)=>b.updated-a.updated)[0]?.id||null;
+  return{documents,deleted,current:selected};
+}
 function load(){
   return connect().then(db=>{
     if(!db)return{available:false,documents:[],deleted:{},current:null};
@@ -137,12 +169,14 @@ function versions(id){
   });
 }
 function pin(doc){
+  const normalized=normalize(doc);
+  if(!normalized)return Promise.resolve(false);
   return connect().then(db=>{
     if(!db)return false;
     return new Promise((resolve,reject)=>{
       try{
         const tx=db.transaction('versions','readwrite');
-        archive(tx.objectStore('versions'),normalize(doc),'manual');
+        archive(tx.objectStore('versions'),normalized,'manual');
         tx.oncomplete=()=>resolve(true);
         tx.onerror=()=>reject(tx.error);
         tx.onabort=()=>reject(tx.error);
@@ -150,5 +184,5 @@ function pin(doc){
     });
   });
 }
-window.WrityStore=Object.freeze({load,write,versions,pin});
+window.WrityStore=Object.freeze({load,write,versions,pin,mergeLegacy});
 })();
