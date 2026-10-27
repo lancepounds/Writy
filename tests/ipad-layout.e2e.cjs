@@ -1,4 +1,6 @@
 const {test,expect}=require('@playwright/test');
+// Enable touch events in each browser engine for these tests.
+test.use({hasTouch:true});
 // Browser-simulated iPad sizes are not a substitute for physical Safari.
 const screens=[{label:'portrait',width:820,height:1180},{label:'landscape',width:1180,height:820}];
 const modes=[
