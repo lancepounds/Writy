@@ -3042,10 +3042,10 @@ function takePhrPick(i,k){if(i<phr.rows)takePhrase(i,k);else if(curSug[k])accept
    and a tile that lands under a resting mouse never types itself: the mouse has to move onto it.
    If the mouse wanders off, the words wait where they are (dimmed) instead of disappearing.
    The tools sit together along the bottom, with Undo (or Delete) straight down. */
-const mwL=$('mwlayer'),anyFine=matchMedia('(any-pointer: fine)');
+const mwL=$('mwlayer');
 const mw={on:false,mode:'words',tiles:[],set:null,hub:null,box:null,reg:null,hubZ:null,needHub:false,sig:'',pageKey:'',A:null,
   pt:null,restPt:null,restT:null,paused:null,btn:false,cur:null,curT:0,timer:null,force:false,from:null,trail:[],ext:false,rb:null,away:false};
-function mwActive(){return cfg.place==='mouse'&&anyFine.matches}
+function mwActive(){return cfg.place==='mouse'}
 function mwAllowed(){return mwActive()&&$('overlay').hidden&&!startOpen&&!wmOpen&&!mmOpenFlag&&smenu.hidden&&!rd.on&&!gz.cal&&!document.hidden}
 function mwPage(){
   const r=ta.getBoundingClientRect();if(!r.width||!r.height)return null;
@@ -3197,11 +3197,15 @@ function mwSpawn(x,y,how){
     for(const s of [1,.86,.74,.62]){
       set.style.setProperty('--mws',s);
       const L=mwFit(sz(it.main),sz(it.ctl),it.piv,it.mid,k,s,hs);
-      if(L){lay=L;reg=Rg}
-      if(L&&L.bw<=Rg.r-Rg.l-12&&L.bh<=Rg.b-Rg.t-12)break find;
+      /* Never select a ring that is bigger than the usable page; it would be clipped. */
+      if(L&&L.bw<=Rg.r-Rg.l-12&&L.bh<=Rg.b-Rg.t-12){lay=L;reg=Rg;break find}
     }
   }
-  if(!lay){set.remove();mwHide(0);return}
+  if(!lay){
+    set.remove();mwHide(0);
+    msg('Mouse words needs more room. Maximize Writy, hide its on-screen keys, or lower browser zoom.',9000);
+    return;
+  }
   set.style.setProperty('--mws',lay.s);dwStop();
   /* the ring sits around the mouse; near the edge of the page it moves inward, and then the mouse
      has to visit the middle of the ring first, so it never crosses a word on its way to another */
@@ -3338,7 +3342,8 @@ function mwRefresh(){
 /* the words come when the mouse rests on the page */
 function mwRest(x,y){
   if(mw.paused||mw.btn)return;
-  if(mw.restPt&&Math.hypot(x-mw.restPt.x,y-mw.restPt.y)<=(cfg.gaze?30:8))return;
+  /* Accommodate a slightly unsteady hand or assistive pointer: minor movement is still a rest. */
+  if(mw.restPt&&Math.hypot(x-mw.restPt.x,y-mw.restPt.y)<=(cfg.gaze?40:28))return;
   mw.restPt={x,y};clearTimeout(mw.restT);
   mw.restT=setTimeout(()=>{
     mw.restT=null;mw.restPt=null;const q=mw.pt;
@@ -3363,7 +3368,7 @@ function mwPointer(x,y){
   const now=performance.now(),tr=mw.trail;tr.push({x,y,t:now});while(tr.length>2&&now-tr[1].t>200)tr.shift();if(tr.length>40)tr.shift();
   if(!mwActive())return;
   const P=mwPage(),inP=mwAllowed()&&mwIn(P,x,y);
-  if(mw.paused&&(!inP||Math.hypot(x-mw.paused.x,y-mw.paused.y)>40))mw.paused=null;
+  if(mw.paused&&(!inP||Math.hypot(x-mw.paused.x,y-mw.paused.y)>20))mw.paused=null;
   if(mw.on){
     if(!mwAllowed()){mwHide(150);return}
     if(mwIn(mw.reg,x,y)&&mwIn(mw.box,x,y)){mwAway(false);clearTimeout(mw.restT);mw.restT=null;mw.restPt=null;mwHit(x,y);return}
@@ -3387,7 +3392,6 @@ window.addEventListener('blur',mwPark);
 document.documentElement.addEventListener('mouseleave',()=>{mw.pt=null;mwPark()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)mwPark()});
 document.addEventListener('wheel',()=>{if(!mw.on)return;mwHide(120);if(mw.pt)mw.paused={x:mw.pt.x,y:mw.pt.y}},{passive:true,capture:true});
-anyFine.addEventListener&&anyFine.addEventListener('change',()=>applyCfg());
 
 /* ---------- Words drop-down: how the suggested words appear ---------- */
 const WLAY=[['tree','Word tree','Words branch out from your cursor','Tree'],['dial','Radial dial','Words on a round dial of slices','Dial'],
@@ -3427,7 +3431,7 @@ document.addEventListener('wheel',e=>{
 document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('wmlenrange'))setWlen(+e.target.value)});
 function wmRender(){
   const row=l=>'<button class="wmitem" role="menuitemradio" aria-checked="'+(cfg.place===l[0])+'" data-do="setplace" data-arg="'+l[0]+'"><span class="wmdot" aria-hidden="true"></span><span class="wmtx"><b>'+esc(l[1])+'</b><small>'+esc(l[2])+'</small></span></button>';
-  $('wordsmenu').innerHTML=WLAY.filter(l=>!l||l[0]!=='mouse'||anyFine.matches).map(l=>l?row(l):'<hr role="separator">').join('')+
+  $('wordsmenu').innerHTML=WLAY.map(l=>l?row(l):'<hr role="separator">').join('')+
     '<hr role="separator"><div class="wmlen wlenwheel" role="group" aria-label="Word length"><div class="wmlenhd"><b>Word length</b><span id="wmLenVal">'+WLENTXT[wlenV()]+'</span></div>'+
     '<div class="wmlenrow"><button class="wmitem wmlenbtn" role="menuitem" data-do="wlen" data-arg="-1" title="Shorter words">Shorter</button>'+
     '<input type="range" class="wmlenrange" min="-3" max="3" step="1" value="'+wlenV()+'" aria-label="Word length" aria-valuetext="'+WLENTXT[wlenV()]+'">'+
@@ -3455,7 +3459,7 @@ function wmClose(back){
   scanStart();
 }
 function setPlace(v){
-  const l=WLAY.find(x=>x&&x[0]===v);if(!l||(v==='mouse'&&!anyFine.matches))return;
+  const l=WLAY.find(x=>x&&x[0]===v);if(!l)return;
   const was=cfg.place;cfg.place=v;
   if(['around','cursor','top'].indexOf(v)>=0)cfg.lastPlace=v;
   if(v==='mouse')mw.mode='words';
@@ -3722,7 +3726,7 @@ ${setRow('Tablet mode: bigger buttons for touch, and Writy’s keys instead of t
 </fieldset>
 <fieldset><legend>Suggestions</legend>
 ${setRow('Spelling and grammar check at the top','check',ONOFF)}
-${setRow('Where the words appear','place',[['tree','Word tree'],['dial','Radial dial'],['menu','Drop-down menu']].concat(anyFine.matches?[['mouse','Words come to my mouse']]:[],[['phrase','Whole phrases'],['around','Around my cursor'],['cursor','One box under it'],['top','Bar at the top']]))}
+${setRow('Where the words appear','place',[['tree','Word tree'],['dial','Radial dial'],['menu','Drop-down menu']].concat([['mouse','Words come to my mouse']], [['phrase','Whole phrases'],['around','Around my cursor'],['cursor','One box under it'],['top','Bar at the top']]))}
 ${cfg.place==='phrase'?
 setRow('Phrases to show','phrN',[[2,'2'],[3,'3'],[4,'4'],[5,'5']])+
 setRow('Single words under the phrases','phrW',[[0,'None'],[3,'3'],[5,'5'],[7,'7']])+
@@ -4317,7 +4321,6 @@ mqNarrow.addEventListener&&mqNarrow.addEventListener('change',()=>{setCols();ref
 function applyCfg(){
   const r=document.documentElement;
   syncHide();ksShow();rgCalc();
-  if(cfg.place==='mouse'&&!anyFine.matches)cfg.place='tree';
   if(cfg.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',cfg.theme);
   r.style.setProperty('--edsize',cfg.size+'px');
   r.style.setProperty('--edline',cfg.line);
