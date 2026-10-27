@@ -19,7 +19,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run offline-first regression tests
         run: npm test
-      - name: Install Chromium for browser checks
-        run: npx playwright install --with-deps chromium
-      - name: Run real-browser persistence checks
+      - name: Install Chromium and Safari WebKit for browser checks
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run cross-browser persistence checks
         run: npm run test:browser
