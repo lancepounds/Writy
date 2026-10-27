@@ -1146,7 +1146,7 @@ function schedSave(){
 const fmtDate=t=>new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'});
 function docsListHTML(){
   return docs.slice().sort((a,b)=>b.updated-a.updated).map(d=>
-    `<div class="li"><button class="liopen" data-do="opendoc" data-arg="${d.id}" aria-current="${d.id===curId}">${esc(d.title||'Untitled')}<small>${fmtDate(d.updated)}</small></button><button class="lidel" data-do="deldoc" data-arg="${d.id}" aria-label="Delete ${esc(d.title||'Untitled')}">Delete</button></div>`
+    `<div class="li"><button class="liopen" data-do="opendoc" data-arg="${esc(d.id)}" aria-current="${d.id===curId}">${esc(d.title||'Untitled')}<small>${fmtDate(d.updated)}</small></button><button class="lidel" data-do="deldoc" data-arg="${esc(d.id)}" aria-label="Delete ${esc(d.title||'Untitled')}">Delete</button></div>`
   ).join('');
 }
 
