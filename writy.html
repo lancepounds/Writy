@@ -4239,6 +4239,7 @@ async function restoreVersion(i,el){
   if(!copy||!storeAvailable)return;
   if(el.dataset.confirm!=='1'){
     el.dataset.confirm='1';el.textContent='Confirm restore';
+    el.setAttribute('aria-label','Confirm restore selected draft');
     return;
   }
   const id=curId;
