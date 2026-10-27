@@ -1129,7 +1129,7 @@ function saveDocs(){
 function schedSave(){
   if(rd.on)stopSpeech();
   rgSched();
-  const d=curDoc();d.text=ta.value;d.updated=Date.now();
+  const d=curDoc();d.text=ta.value;d.updated=Math.max(Date.now(),(d.updated||0)+1);
   schedCheck();
   $('stSaved').textContent='Saving...';
   if(saveTimer)clearTimeout(saveTimer);
@@ -3746,7 +3746,11 @@ function renderDlg(){
 <fieldset><legend>Back up everything</legend>
 <p class="dlgnote" style="margin-top:0">Saves all ${docs.length} document${docs.length===1?'':'s'}, your phrases, the words it learned, your dictionary and your settings in one file. ${lb?'Last backup: '+new Date(lb).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'.':'You have not made a backup yet.'}</p>
 <div class="dlgrow wrap" style="margin:8px 0 0"><button class="dlgbtn" data-do="bkfile">Save backup file</button><button class="dlgbtn" data-do="bkcopy">Copy backup text</button></div>
-<p class="dlgnote">If a file does not download here, use Copy backup text and paste it into an email to yourself or a note.</p>
+<p class="dlgnote">A browser can still clear its own data. Keep a backup file outside Writy for important work.</p>
+</fieldset>
+<fieldset><legend>Local recovery</legend>
+<p class="dlgnote">Writy saves documents on this device. Earlier drafts are kept in IndexedDB so you can recover a prior version without using the internet. These copies are not a substitute for an exported backup file.</p>
+<div class="dlgrow wrap"><button class="dlgbtn" data-do="versions">Previous versions of this document</button><button class="dlgbtn" data-do="persist">Protect offline storage</button></div>
 </fieldset>
 <fieldset><legend>Restore from a backup</legend>
 <p class="dlgnote" style="margin-top:0">Adds the backup&rsquo;s documents and words to this device. Nothing here is deleted. If a document is in both, the newer one is kept.</p>
@@ -3755,6 +3759,9 @@ ${appleApp()?'<p class="dlgnote"><b>Bringing your documents from Safari?</b> In 
 <input type="file" id="bkFile" accept=".json,.writy,.txt,application/json,text/plain" hidden>
 <textarea id="bkPaste" placeholder="Or paste backup text here" aria-label="Paste backup text"></textarea>
 </fieldset>`;
+  }else if(dlgKind==='versions'){
+    title='Previous versions';
+    b.innerHTML='<p class="dlgnote">Loading earlier drafts from this device...</p>';
   }else if(dlgKind==='settings'){
     title='Settings';
     const n=Object.keys(U.u).length;
@@ -4206,6 +4213,52 @@ function teachFrom(txt){
 }
 
 /* ---------- backup, restore, export ---------- */
+let recoveryList=[];
+async function showVersions(){
+  if(!storeAvailable||!window.WrityStore){msg('Previous versions are unavailable in this browser. Save a backup file.',8500);return}
+  const id=curId;openDlg('versions');
+  try{
+    recoveryList=await WrityStore.versions(id);
+    if(dlgKind!=='versions'||curId!==id)return;
+    const body=$('dlgBody');
+    if(!recoveryList.length){
+      body.innerHTML='<p class="dlgnote">No older saved drafts yet. Writy normally saves a recovery version as you continue editing a document.</p>';
+      return;
+    }
+    body.innerHTML='<p class="dlgnote">Restoring an earlier draft will first save a recovery copy of the document as it is now. Earlier versions remain available on this device.</p>'+
+    recoveryList.map((r,i)=>'<div class="li" style="padding:8px 4px;border-bottom:1px solid var(--off)"><div style="flex:1;min-width:0"><b>'+
+      esc(new Date(r.archivedAt).toLocaleString())+'</b> ('+esc(r.kind||'previous')+')<div class="dlgnote">'+esc((r.text||'').slice(0,160))+'</div></div>'+
+      '<button class="dlgbtn" data-do="revrestore" data-arg="'+i+'" aria-label="Restore draft from '+esc(new Date(r.archivedAt).toLocaleString())+'">Restore</button></div>').join('');
+  }catch(e){if(dlgKind==='versions')$('dlgBody').textContent='Could not read local recovery versions. Try exporting a backup.'}
+}
+async function restoreVersion(i,el){
+  const copy=recoveryList[i];
+  if(!copy||!storeAvailable)return;
+  if(el.dataset.confirm!=='1'){
+    el.dataset.confirm='1';el.textContent='Confirm restore';
+    return;
+  }
+  const id=curId;
+  flushAll();
+  try{
+    await storeQueue;
+    if(id!==curId)return;
+    const doc=curDoc();
+    await WrityStore.pin({id:doc.id,title:doc.title,text:ta.value,updated:doc.updated});
+    doc.text=copy.text;doc.title=copy.title||doc.title;
+    ta.value=doc.text;ta.setSelectionRange(doc.text.length,doc.text.length);
+    histReset();renderNav();refresh();schedSave();
+    closeDlg();
+    msg('Earlier draft restored. Your previous text is preserved under Previous versions.',8500);
+  }catch(e){msg('Could not preserve the current draft; restore was cancelled. Download a backup and retry.',10000)}
+}
+async function protectOfflineStorage(){
+  try{
+    if(!navigator.storage||!navigator.storage.persist){msg('This browser manages offline storage automatically. Download backups for important work.',9000);return}
+    const granted=await navigator.storage.persist();
+    msg(granted?'The browser granted persistent storage. Keep backup files for extra safety.':'The browser did not grant persistent storage. Use Save backup file regularly.',9000);
+  }catch(e){msg('Could not change storage protection. Keep backup files outside Writy.',8000)}
+}
 function flushAll(){if(saveTimer){clearTimeout(saveTimer);saveDocs()}if(modelTimer){clearTimeout(modelTimer);saveModel()}}
 function makeBackup(){
   flushAll();
@@ -4302,11 +4355,17 @@ async function emailIt(){
   if(!openMail(url,gm)){msg('Your browser blocked the new tab. Allow pop-ups for Writy (the sign at the right end of the address bar), then press Email again.',15000);return}
   msg(longMsg||'New email opened in '+(gm?'Gmail':'your email program')+(p.part?' with the selected text':'')+'. '+(p.to?'Check it, then send.':'Add who it goes to, then send.'),longMsg?15000:8000);
 }
-function doBackup(how){
+async function doBackup(how){
   const json=makeBackup();
-  S.set('sw.lastbackup',Date.now());
-  if(how==='file'){saveAs('Writy-backup-'+stamp()+'.json',json,'application/json');msg('Backup saved to your downloads. If nothing downloaded, use Copy backup text.')}
-  else copyText(json,'Backup copied. Paste it somewhere safe, like an email to yourself.');
+  let ok=false;
+  if(how==='file'){
+    ok=await saveAs('Writy-backup-'+stamp()+'.json',json,'application/json');
+    msg(ok?'Backup download requested. Verify the file is in Downloads.':'Backup could not be downloaded. Try Copy backup text.',8500);
+  }else{
+    try{await navigator.clipboard.writeText(json);ok=true;msg('Backup copied. Paste it somewhere safe, such as a document on your device.',8500)}
+    catch(e){msg('Could not copy backup text. Try Save backup file.',8500)}
+  }
+  if(ok)S.set('sw.lastbackup',Date.now());
   if(dlgKind==='backup')renderDlg();
 }
 function restoreFrom(text){
@@ -4519,6 +4578,9 @@ function act(what,arg,el){
     }
     case'phrasedit':openDlg('phrases');break;
     case'backup':openDlg('backup');break;
+    case'versions':showVersions();break;
+    case'revrestore':restoreVersion(+arg,el);break;
+    case'persist':protectOfflineStorage();break;
     case'expdoc':exportDoc('doc');break;
     case'exptxt':exportDoc('txt');break;
     case'bkfile':doBackup('file');break;
