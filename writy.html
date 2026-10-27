@@ -1113,11 +1113,19 @@ function docsTakeIn(st){
   const r=docsMerge(st);if(!r.changed)return;
   const d=curDoc();
   if(r.cur&&d&&ta.value!==d.text){
-    /* a newer version of the open document was saved in another window */
+    /* A newer edit arrived from another window. Preserve the entire local
+       editor text as a separately reopenable document BEFORE replacing it. */
     if(rd.on)stopSpeech();
+    const oldText=ta.value;
+    const copy={id:uid(),title:(d.title||'Untitled')+' (window conflict copy)',
+      text:oldText,updated:Date.now()};
+    docs.push(copy);
+    if(saveTimer){clearTimeout(saveTimer);saveTimer=null}
     const a=ta.selectionStart,b=ta.selectionEnd,top=ta.scrollTop;
     ta.value=d.text;ta.setSelectionRange(Math.min(a,ta.value.length),Math.min(b,ta.value.length));ta.scrollTop=top;
     histReset();autoSpaceIdx=-1;refresh();schedCheck();rgSched();
+    docsWrite();
+    msg('Both edits were kept. Open Documents for the window conflict copy.',11000);
   }
   renderNav();if(dlgKind==='docs')renderDlg();
 }
