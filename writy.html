@@ -711,7 +711,7 @@ html.gaze .wmlenrow{justify-content:space-between}
       </main>
     </div>
     <div class="statusbar" role="status">
-      <button class="stks" id="stWords" data-do="readability" title="Readability summary">0 words</button><span id="stSaved">Saved</span><button class="stks" id="stKs" data-do="ksinfo" hidden></button><span id="stMsg" aria-live="polite"></span><span id="stMode"></span>
+      <button class="stks" id="stWords" data-do="readability" title="Readability summary">0 words</button><span id="stSaved" role="status" aria-live="polite">Loading documents...</span><button class="stks" id="stKs" data-do="ksinfo" hidden></button><span id="stMsg" aria-live="polite"></span><span id="stMode"></span>
     </div>
   </div>
   <div class="taskbar">
@@ -767,6 +767,7 @@ html.gaze .wmlenrow{justify-content:space-between}
   </div>
 </div>
 
+<script src="writy-store.js"></script>
 <script>
 (function(){
 "use strict";
@@ -1025,6 +1026,65 @@ if(!Array.isArray(docs)||!docs.length){docs=[{id:uid(),title:'Welcome',text:WELC
 if(!docs.some(d=>d.id===curId))curId=docs[0].id;
 const curDoc=()=>docs.find(d=>d.id===curId);
 let saveTimer=null,saveFailed=false;
+let storeReady=false,storeAvailable=false,storeSequence=0,storeQueue=Promise.resolve();
+function setSavedStatus(t){const el=$('stSaved');if(el)el.textContent=t}
+function mirrorDocs(){
+  try{const out=JSON.stringify(docs);localStorage.setItem('sw.docs',out);docsRaw=out;return true}
+  catch(e){return false}
+}
+/* Read IndexedDB before editing starts. Both stores are merged by modification date.
+   Legacy localStorage is NEVER deleted by the migration. */
+async function hydrateDocs(){
+  let state={available:false,documents:[],deleted:{},current:null};
+  try{if(window.WrityStore)state=await WrityStore.load()}catch(e){}
+  storeAvailable=!!state.available;
+  if(storeAvailable){
+    const gone=goneGet();
+    for(const [id,time] of Object.entries(state.deleted||{}))gone[id]=Math.max(+gone[id]||0,+time||0);
+    S.set('sw.gone',gone);
+    /* No legacy snapshot means the initial Welcome doc was only a placeholder. */
+    const merged=new Map();
+    for(const d of state.documents||[])merged.set(d.id,d);
+    if(docsRaw!==null)for(const d of docs){
+      const old=merged.get(d.id);
+      if(!old||(+d.updated||0)>(+old.updated||0))merged.set(d.id,d);
+    }
+    docs=[...merged.values()].filter(d=>typeof d.text==='string'&&!(gone[d.id]&&gone[d.id]>=(d.updated||0)));
+    if(!docs.length){docs=[{id:uid(),title:'Welcome',text:WELCOME,updated:Date.now()}]}
+    if(!docs.some(d=>d.id===curId))curId=docs.some(d=>d.id===state.current)?state.current:docs.slice().sort((a,b)=>b.updated-a.updated)[0].id;
+  }
+  storeReady=true;
+  if(!storeAvailable)setSavedStatus('Browser-only saving (back up your work)');
+}
+/* Keep a legacy mirror for offline fallback and across-window notifications.
+   Confirm IndexedDB completion before claiming the document is saved there. */
+function docsWrite(){
+  const mirrorOK=mirrorDocs();
+  S.set('sw.cur',curId);
+  if(!storeReady)return mirrorOK;
+  if(!storeAvailable){
+    saveFailed=!mirrorOK;setSavedStatus(mirrorOK?'Saved in browser storage':'NOT SAVED — use Backup');
+    return mirrorOK;
+  }
+  const snapshot=docs.map(d=>({id:d.id,title:d.title,text:d.text,updated:d.updated}));
+  const gone=goneGet(),active=curId,sequence=++storeSequence;
+  setSavedStatus('Saving on device...');
+  storeQueue=storeQueue.catch(()=>{}).then(()=>WrityStore.write(snapshot,gone,active))
+    .then(result=>{
+      if(sequence!==storeSequence)return;
+      if(result.available){
+        saveFailed=false;setSavedStatus('Saved on this device');
+        if(result.conflicts)msg('Another Writy window has a newer edit. Your conflicting version was kept in Backup → Previous versions.',12000);
+      }else{
+        saveFailed=!mirrorOK;
+        setSavedStatus(mirrorOK?'Saved in browser storage':'NOT SAVED — use Backup');
+      }
+    }).catch(()=>{
+      if(sequence!==storeSequence)return;
+      saveFailed=!mirrorOK;setSavedStatus(mirrorOK?'Saved in browser storage (make a backup)':'NOT SAVED — use Backup');
+    });
+  return mirrorOK;
+}
 /* Writy open in more than one window: each window keeps its own copy of the documents, so before saving it takes
    in what the others saved (new documents, newer versions, deleted documents), and never saves over their work.
    Deleted documents are remembered for a while (sw.gone) so an older copy cannot bring them back. */
@@ -1061,15 +1121,10 @@ function docsTakeIn(st){
   }
   renderNav();if(dlgKind==='docs')renderDlg();
 }
-function docsWrite(){
-  try{const out=JSON.stringify(docs);localStorage.setItem('sw.docs',out);docsRaw=out;return true}catch(e){return false}
-}
 function saveDocs(){
   saveTimer=null;
   try{const raw=localStorage.getItem('sw.docs');if(raw&&raw!==docsRaw)docsTakeIn(JSON.parse(raw))}catch(e){}
-  const ok=docsWrite()&&S.set('sw.cur',curId);
-  saveFailed=!ok;
-  $('stSaved').textContent=ok?'Saved':'Not saved (storage is blocked)';
+  docsWrite();
 }
 function schedSave(){
   if(rd.on)stopSpeech();
@@ -4609,7 +4664,8 @@ $('docTitle').addEventListener('input',e=>{
 $('docTitle').addEventListener('change',e=>{
   const d=curDoc();d.title=e.target.value.trim()||'Untitled';e.target.value=d.title;renderNav();saveDocs();
 });
-window.addEventListener('pagehide',()=>{if(saveTimer)saveDocs();saveModel()});
+window.addEventListener('pagehide',()=>{if(saveTimer){clearTimeout(saveTimer);saveDocs()}saveModel()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&saveTimer){clearTimeout(saveTimer);saveDocs()}});
 /* another Writy window saved something: show it here too, so this window never saves an older copy over it */
 window.addEventListener('storage',e=>{
   try{
@@ -4651,12 +4707,17 @@ window.addEventListener('storage',e=>{
 });
 
 /* ---------- start ---------- */
-(function boot(){
+(async function boot(){
+  ta.disabled=true;$('docTitle').disabled=true;
+  try{await hydrateDocs()}catch(e){storeReady=true;storeAvailable=false}
   const d=curDoc();
   ta.value=d.text;
   ta.setSelectionRange(d.text.length,d.text.length);
   histReset();renderNav();applyCfg();setSpeakLabel();appHint();tabletTip();instSync();
+  ta.disabled=false;$('docTitle').disabled=false;
   ta.scrollTop=ta.scrollHeight;twCenter();placeFloat();syncWindowMode();
+  docsWrite(); /* seed IndexedDB on migration, or refresh the browser fallback */
+  if(!storeAvailable)msg('Saving uses browser storage only. Use Backup → Save backup file regularly.',10000);
   if(fine)ta.focus({preventScroll:true});
 })();
 })();
