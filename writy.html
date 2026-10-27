@@ -1039,19 +1039,14 @@ async function hydrateDocs(){
   try{if(window.WrityStore)state=await WrityStore.load()}catch(e){}
   storeAvailable=!!state.available;
   if(storeAvailable){
-    const gone=goneGet();
-    for(const [id,time] of Object.entries(state.deleted||{}))gone[id]=Math.max(+gone[id]||0,+time||0);
-    S.set('sw.gone',gone);
-    /* No legacy snapshot means the initial Welcome doc was only a placeholder. */
-    const merged=new Map();
-    for(const d of state.documents||[])merged.set(d.id,d);
-    if(docsRaw!==null)for(const d of docs){
-      const old=merged.get(d.id);
-      if(!old||(+d.updated||0)>(+old.updated||0))merged.set(d.id,d);
-    }
-    docs=[...merged.values()].filter(d=>typeof d.text==='string'&&!(gone[d.id]&&gone[d.id]>=(d.updated||0)));
-    if(!docs.length){docs=[{id:uid(),title:'Welcome',text:WELCOME,updated:Date.now()}]}
-    if(!docs.some(d=>d.id===curId))curId=docs.some(d=>d.id===state.current)?state.current:docs.slice().sort((a,b)=>b.updated-a.updated)[0].id;
+    /* IndexedDB wins unless an existing browser-storage draft is actually newer.
+       When timestamps tie and contents differ, preserve BOTH copies. */
+    const migrated=WrityStore.mergeLegacy(state,docsRaw===null?[]:docs,curId,goneGet());
+    docs=migrated.documents;
+    S.set('sw.gone',migrated.deleted);
+    if(!docs.length)docs=[{id:uid(),title:'Welcome',text:WELCOME,updated:Date.now()}];
+    curId=migrated.current&&docs.some(d=>d.id===migrated.current)?
+      migrated.current:docs.slice().sort((a,b)=>b.updated-a.updated)[0].id;
   }
   storeReady=true;
   if(!storeAvailable)setSavedStatus('Browser-only saving (back up your work)');
