@@ -33,16 +33,27 @@ for(const screen of screens){
    await expect(page.locator('#ed')).toBeEnabled();
    for(const [mode,box,button] of modes){
      await modeOn(page,mode);
-     const panel=page.locator(box);
-     await expect(panel,mode+' panel hidden').toBeVisible();
-     await expect(panel.locator(button).first(),mode+' predictions empty').toBeVisible();
-     const r=await rect(page,box);
-     expect.soft(r.width,mode+' width').toBeGreaterThan(42);
-     expect.soft(r.height,mode+' height').toBeGreaterThan(20);
-     expect.soft(r.x,mode+' left').toBeGreaterThanOrEqual(-4);
-     expect.soft(r.y,mode+' top').toBeGreaterThanOrEqual(-4);
-     expect.soft(r.right,mode+' right').toBeLessThanOrEqual(r.viewportWidth+4);
-     expect.soft(r.bottom,mode+' bottom').toBeLessThanOrEqual(r.viewportHeight+4);
+     // Cursor/around predictions may legitimately render above OR below the
+     // caret, using different elements. Audit whichever panels are visible.
+     const floating=mode==='around'||mode==='cursor';
+     const panels=floating?page.locator('#floatsug:visible, #floatsug2:visible'):page.locator(box);
+     await expect(panels.first(),mode+' panel hidden').toBeVisible();
+     const count=await panels.count();
+     for(let i=0;i<count;i++){
+       const panel=panels.nth(i);
+       await expect(panel.locator(button).first(),mode+' predictions empty').toBeVisible();
+       const r=await panel.evaluate(el=>{
+         const q=el.getBoundingClientRect(),v=window.visualViewport;
+         return {x:q.left,y:q.top,right:q.right,bottom:q.bottom,width:q.width,height:q.height,
+           viewportWidth:v?v.width:innerWidth,viewportHeight:v?v.height:innerHeight};
+       });
+       expect.soft(r.width,mode+' width').toBeGreaterThan(42);
+       expect.soft(r.height,mode+' height').toBeGreaterThan(20);
+       expect.soft(r.x,mode+' left').toBeGreaterThanOrEqual(-4);
+       expect.soft(r.y,mode+' top').toBeGreaterThanOrEqual(-4);
+       expect.soft(r.right,mode+' right').toBeLessThanOrEqual(r.viewportWidth+4);
+       expect.soft(r.bottom,mode+' bottom').toBeLessThanOrEqual(r.viewportHeight+4);
+     }
      const ed=await rect(page,'#ed');
      expect.soft(ed.height,mode+' editor height').toBeGreaterThan(100);
    }
