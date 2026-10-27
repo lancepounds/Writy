@@ -1,0 +1,49 @@
+HOW TO ADD THE INSTALLABLE WRITY TO YOUR WEBSITE
+
+There are 8 files in this folder. All 8 go in the same folder on your website
+as your current writy.html. The new writy.html replaces the old one.
+
+  writy.html                 Writy itself (new version)
+  writy.webmanifest          Tells devices Writy's name and icon, so it can be installed
+  writy-sw.js                The offline helper: keeps a copy of Writy on the device
+  writy-32.png, writy-192.png, writy-512.png,
+  writy-maskable-512.png, writy-apple-180.png    The app icons
+
+PUT THEM ON GITHUB
+  1. Go to github.com and open the repository for your website.
+  2. Open the folder that has writy.html in it.
+  3. Click "Add file", then "Upload files".
+  4. Drag all 8 files from this folder into the page.
+  5. Click "Commit changes".
+  6. Wait a minute or two while GitHub updates your website.
+
+INSTALL WRITY
+  First open writy.html on your website once while you are online.
+  - Computer (Chrome or Edge): open the Start menu in Writy and choose
+    "Install Writy (works offline)", or click the install button at the
+    right end of the address bar.
+  - iPad or iPhone (Safari): tap the Share button, then "Add to Home Screen",
+    then "Add".
+  - Mac (Safari): choose File, then "Add to Dock", then "Add".
+  - Android (Chrome): open the browser menu and choose "Install app".
+
+After that, Writy opens from its own icon and works without internet.
+
+YOUR DOCUMENTS IN THE INSTALLED WRITY
+  - Installed from Chrome or Edge (on a computer or Android): the same
+    documents as on the website.
+  - Installed on an iPad, iPhone, or a Mac with Safari: Apple keeps installed
+    web apps apart from Safari, so the installed Writy starts fresh, with just
+    the example document. To bring yours along: in Safari, open Backup and
+    choose "Copy backup text". Then open the installed Writy, open Backup,
+    paste it in the box and choose "Restore from pasted text".
+
+LATER UPDATES
+  Just upload the new writy.html the same way. Writy picks it up the next time
+  it opens while you are online. The other 7 files only need uploading once.
+
+GOOD TO KNOW
+  - The offline helper only looks after Writy's own files. The rest of your
+    website is not affected.
+  - Email, online voices (like the Google voices in Chrome) and webcam eye
+    tracking still need internet. Everything else works offline.

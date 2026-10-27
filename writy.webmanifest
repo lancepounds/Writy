@@ -1,0 +1,19 @@
+{
+  "id": "writy",
+  "name": "Writy",
+  "short_name": "Writy",
+  "description": "A word prediction word processor: the words you are about to type, a tap away. Works without internet.",
+  "lang": "en",
+  "start_url": "writy.html",
+  "scope": "writy",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#3D7BD9",
+  "theme_color": "#0050EE",
+  "categories": ["productivity", "utilities", "education"],
+  "icons": [
+    { "src": "writy-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "writy-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "writy-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
