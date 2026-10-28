@@ -1257,6 +1257,106 @@ function histGo(dir){
   const p=Math.min(hist[ni].s,ta.value.length);ta.setSelectionRange(p,p);
   autoSpaceIdx=-1;refresh();schedSave();
 }
+
+/* ---------- text formatting and safe read-only preview ----------
+   The textarea remains the source of truth for predictions, saving and backups. */
+let fmtPreviewOn=false;
+function fmtEditDone(s,e){
+  ta.setSelectionRange(s,e);
+  autoSpaceIdx=-1;pushHist(false);refresh();schedSave();
+  ta.focus({preventScroll:true});
+}
+function fmtWrap(marker){
+  if(fmtPreviewOn)fmtTogglePreview();
+  const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,chunk=v.slice(s,e),n=marker.length;
+  if(s>=n&&v.slice(s-n,s)===marker&&v.slice(e,e+n)===marker){
+    ta.setRangeText(chunk,s-n,e+n,'end');
+    fmtEditDone(s-n,e-n);return;
+  }
+  if(chunk.length>=n*2&&chunk.startsWith(marker)&&chunk.endsWith(marker)){
+    ta.setRangeText(chunk.slice(n,-n),s,e,'end');
+    fmtEditDone(s,s+chunk.length-2*n);return;
+  }
+  if(s===e){
+    ta.setRangeText(marker+marker,s,e,'end');
+    fmtEditDone(s+n,s+n);
+  }else{
+    ta.setRangeText(marker+chunk+marker,s,e,'end');
+    fmtEditDone(s+n,e+n);
+  }
+}
+function fmtLines(mode){
+  if(fmtPreviewOn)fmtTogglePreview();
+  const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,
+    start=v.lastIndexOf('\n',Math.max(0,s-1))+1,
+    last=e>s&&v[e-1]==='\n'?e-1:e,
+    after=v.indexOf('\n',last),end=after<0?v.length:after,
+    lines=v.slice(start,end).split('\n');
+  const prefix=/^(?:#{1,2}\s+|[-*]\s+|\d+\.\s+|>\s+)/;
+  const test={
+    h1:/^# (?!#)/,h2:/^## /,bullet:/^[-*] /,number:/^\d+\. /,quote:/^> /
+  }[mode];
+  const active=test&&lines.some(x=>x.trim())&&lines.filter(x=>x.trim()).every(x=>test.test(x));
+  let index=0;
+  const next=lines.map(line=>{
+    if(!line.trim())return line;
+    const body=line.replace(prefix,'');
+    if(active)return body;
+    if(mode==='h1')return '# '+body;
+    if(mode==='h2')return '## '+body;
+    if(mode==='bullet')return '- '+body;
+    if(mode==='number')return (++index)+'. '+body;
+    if(mode==='quote')return '> '+body;
+    return body;
+  }).join('\n');
+  ta.setRangeText(next,start,end,'end');
+  const caret=start+next.length;
+  fmtEditDone(s===e?caret:start,caret);
+}
+function fmtInlineHtml(t){
+  return esc(t)
+    .replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/\+\+([^+\n]+)\+\+/g,'<u>$1</u>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<em>$2</em>');
+}
+function formatPreviewHtml(raw){
+  const lines=String(raw||'').replace(/\r\n?/g,'\n').split('\n');
+  let out='',list='',para=[];
+  const flush=()=>{if(para.length){out+='<p>'+para.map(fmtInlineHtml).join('<br>')+'</p>';para=[]}};
+  const endList=()=>{if(list){out+='</'+list+'>';list=''}};
+  for(const line of lines){
+    if(!line.trim()){flush();endList();continue}
+    const h=/^(#{1,2})\s+(.+)$/.exec(line);
+    const bullet=/^[-*]\s+(.+)$/.exec(line);
+    const number=/^\d+\.\s+(.+)$/.exec(line);
+    const quote=/^>\s+(.+)$/.exec(line);
+    if(h){flush();endList();const tag=h[1].length===1?'h1':'h2';out+='<'+tag+'>'+fmtInlineHtml(h[2])+'</'+tag+'>'}
+    else if(bullet||number){
+      flush();const kind=bullet?'ul':'ol';
+      if(list!==kind){endList();out+='<'+kind+'>';list=kind}
+      out+='<li>'+fmtInlineHtml((bullet||number)[1])+'</li>';
+    }else if(quote){flush();endList();out+='<blockquote>'+fmtInlineHtml(quote[1])+'</blockquote>'}
+    else{endList();para.push(line)}
+  }
+  flush();endList();
+  return out||'<p class="fmtempty">Nothing to preview yet.</p>';
+}
+function fmtTogglePreview(){
+  fmtPreviewOn=!fmtPreviewOn;
+  const editor=document.querySelector('.editor'),btn=$('fmtPreviewBtn');
+  editor.classList.toggle('is-preview',fmtPreviewOn);
+  btn.setAttribute('aria-pressed',String(fmtPreviewOn));
+  btn.textContent=fmtPreviewOn?'Edit':'Preview';
+  if(fmtPreviewOn){
+    $('fmtpreview').innerHTML=formatPreviewHtml(ta.value);
+    $('fmtpreview').focus({preventScroll:true});
+    pickClear();
+  }else{
+    ta.focus({preventScroll:true});
+    refresh();
+  }
+}
+
 function curState(){
   const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd;
   if(s!==e)return{s,e,prefix:'',ctx:ctxOf(v.slice(0,s)),start:sentStart(v,s),replace:true};
