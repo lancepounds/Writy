@@ -182,6 +182,25 @@ button.cap{pointer-events:auto}
 .fmtpreview .fmtempty{font-style:italic;color:var(--ink-soft)}
 .editor.is-preview .edwrap{display:none}
 .editor:not(.is-preview) .fmtpreview{display:none}
+.editor.is-rich .edwrap,.editor.is-rich .fmtpreview{display:none}
+.rich-editor[hidden]{display:none!important}
+.rich-editor{flex:1;min-width:0;overflow:auto;padding:18px 20px;border:1px solid var(--line);
+  background:var(--paper);color:var(--ink);font-family:var(--edfont);font-size:var(--edsize);
+  line-height:var(--edline);outline:none;white-space:pre-wrap;overflow-wrap:anywhere;
+  user-select:text;-webkit-user-select:text;caret-color:var(--signal)}
+.rich-editor:focus{box-shadow:0 0 0 2px var(--signal)}
+.rich-editor h1{font-size:1.5em;line-height:1.25;margin:.4em 0}
+.rich-editor h2{font-size:1.25em;line-height:1.3;margin:.4em 0}
+.rich-editor p{margin:.25em 0 .7em}
+.rich-editor ul,.rich-editor ol{padding-left:1.6em}
+.rich-editor blockquote{border-left:4px solid var(--signal);padding-left:.85em;margin:.5em 0;color:var(--ink)}
+.fmtselect{min-height:40px;min-width:76px;padding:3px 6px;border:1px solid var(--edge);border-radius:3px;background:var(--paper);color:var(--ink);font:14px var(--font)}
+.fmtselect:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+html.rich-active .checkbar{display:none!important}
+html.rich-active .linehi{display:none!important}
+html.rich-active .sugbar{display:block}
+html.rich-active .fmthelp{display:none}
+
 @media (max-width:640px){
   .formatbar{gap:4px;padding:5px var(--gx2) 5px var(--gx)}
   .fmtlabel,.fmthelp{display:none}
@@ -720,6 +739,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="navbtn" id="btnUndo" data-do="undo" aria-label="Undo" title="Undo">&#9664;</button>
       <button class="navbtn" id="btnRedo" data-do="redo" aria-label="Redo" title="Redo">&#9654;</button>
       <div class="address"><span class="crumb">Writy</span><span class="sep"></span><input id="docTitle" type="text" aria-label="Document name" maxlength="80" autocomplete="off" spellcheck="false"></div>
+      <button class="fmt-toggle" id="btnRich" data-do="richmode" aria-pressed="false" title="Edit formatted text directly on the page">Rich text</button>
       <button class="fmt-toggle" id="btnFormat" data-do="fmttoggle" aria-controls="formatbar" aria-expanded="false" title="Show or hide the text formatting bar">Format</button>
     </div>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Tools">
@@ -759,6 +779,15 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="fmtbtn" data-do="fmtbullet" type="button" title="Bulleted list">• List</button>
       <button class="fmtbtn" data-do="fmtnumber" type="button" title="Numbered list">1. List</button>
       <button class="fmtbtn" data-do="fmtquote" type="button" title="Block quote">Quote</button>
+      <button class="fmtbtn" data-do="fmtleft" title="Align left" aria-label="Align left">≡ Left</button>
+      <button class="fmtbtn" data-do="fmtcenter" title="Align center" aria-label="Align center">≡ Center</button>
+      <button class="fmtbtn" data-do="fmtright" title="Align right" aria-label="Align right">≡ Right</button>
+      <select class="fmtselect" id="fmtFont" aria-label="Text font" title="Change font in rich text">
+        <option value="">Font</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Times New Roman">Times</option><option value="Verdana">Verdana</option><option value="Courier New">Courier</option>
+      </select>
+      <select class="fmtselect" id="fmtSize" aria-label="Text size" title="Change text size in rich text">
+        <option value="">Size</option><option value="2">Small</option><option value="3">Normal</option><option value="4">Large</option><option value="5">Larger</option><option value="6">Huge</option>
+      </select>
       <button class="fmtbtn" id="fmtPreviewBtn" data-do="fmtpreview" type="button" title="See document with formatting applied" aria-pressed="false">Preview</button>
       <span class="fmthelp">Select text to style it, or put the cursor on a line.</span>
     </div>
@@ -779,6 +808,7 @@ html.lanceos-embedded #startmenu{display:none !important}
           <div class="edscroll" aria-label="Scroll the text"><button class="act" data-do="edup" aria-label="Scroll the text up">&#9650;</button><button class="act" data-do="eddown" aria-label="Scroll the text down">&#9660;</button></div>
           <div class="edwrap"><div class="linehi" id="linehi" aria-hidden="true" hidden></div><div class="backdrop" id="backdrop" aria-hidden="true"></div><textarea id="ed" aria-label="Document text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter"></textarea></div>
           <div class="fmtpreview" id="fmtpreview" role="region" aria-label="Formatted document preview" tabindex="0"></div>
+          <div class="rich-editor" id="richEditor" role="textbox" contenteditable="true" aria-multiline="true" aria-label="Rich text document editor" spellcheck="true" hidden></div>
         </section>
         <section class="kb" id="kb" aria-label="On-screen keyboard" hidden></section>
         <div class="switchbar" id="switchbar" hidden><button class="act" id="switchBtn" data-do="switch">Select (or press Space)</button></div>
