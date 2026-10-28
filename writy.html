@@ -1459,7 +1459,16 @@ function richSelection(){
 }
 function richRemember(){
   const sel=richSelection();
-  if(sel)richLastRange=sel.getRangeAt(0).cloneRange();
+  if(!sel)return;
+  richLastRange=sel.getRangeAt(0).cloneRange();
+  try{
+    const before=document.createRange(),after=document.createRange();
+    before.selectNodeContents(richEl);after.selectNodeContents(richEl);
+    before.setEnd(sel.anchorNode,sel.anchorOffset);
+    after.setEnd(sel.focusNode,sel.focusOffset);
+    const a=Math.min(before.toString().length,ta.value.length),b=Math.min(after.toString().length,ta.value.length);
+    ta.setSelectionRange(Math.min(a,b),Math.max(a,b));queueRefresh();
+  }catch(e){}
 }
 document.addEventListener('selectionchange',()=>{if(richOn)richRemember()});
 function richRestore(){
@@ -1862,12 +1871,14 @@ function handleTyped(ch,idx){
   pushHist(isWordCh);keepCaretVisible();refresh();schedSave();
 }
 function typeChar(ch){
+  if(richOn){richCommand(ch==='\n'?'insertParagraph':'insertText',ch==='\n'?null:ch);return}
   const s=ta.selectionStart,e=ta.selectionEnd,L0=ta.value.length;
   ta.setRangeText(ch,s,e,'end');
   handleTyped(ch,s);
   tally(1,ta.value.length-L0);
 }
 function backspace(){
+  if(richOn){richCommand('delete');return}
   tally(1,0);
   const s=ta.selectionStart,e=ta.selectionEnd;
   if(s!==e)ta.setRangeText('',s,e,'end');
@@ -1875,6 +1886,7 @@ function backspace(){
   autoSpaceIdx=-1;pushHist(false);refresh();schedSave();
 }
 function insertPhrase(text){
+  if(richOn){richCommand('insertText',text+' ');return}
   const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,L0=v.length;
   const lead=(s>0&&!/\s/.test(v[s-1]))?' ':'';
   ta.setRangeText(lead+text+' ',s,e,'end');
@@ -2909,7 +2921,7 @@ function keyPress(k){
   if(k==='shift'){tally(1,0);shiftOn=!shiftOn;renderKb();return}
   if(k==='num'){tally(1,0);kbLayer='num';renderKb();return}
   if(k==='abc'){tally(1,0);kbLayer='abc';renderKb();return}
-  ta.focus({preventScroll:true});
+  (richOn?richEl:ta).focus({preventScroll:true});
   if(k==='back'){backspace();return}
   if(k==='space'){typeChar(' ');return}
   if(k==='enter'){typeChar('\n');return}
@@ -4043,7 +4055,7 @@ function setTablet(on){
   cfg.tablet=!!on;if(on)cfg.keys=true;
   saveCfg();mmClose();applyCfg();if(dlgKind==='settings')renderDlg();
   msg(on?'Tablet mode on: bigger buttons, and Writy’s keys instead of the tablet’s keyboard. The rest of the buttons are under More.':'Tablet mode off.',8000);
-  if(fine||cfg.tablet)ta.focus({preventScroll:true});
+  if(fine||cfg.tablet)(richOn?richEl:ta).focus({preventScroll:true});
 }
 /* press and hold a suggested word (touch screens): Don't suggest it */
 const lp={t:null,x:0,y:0,id:null,fired:false,eat:0};
@@ -5041,6 +5053,11 @@ function act(what,arg,el){
     case'voicetry':speakNow(SAMPLE);break;
     case'email':closeStart();if(dlgKind)closeDlg();emailIt();break;
     case'copy':{
+      if(richOn){const sel=richSelection();const value=sel&&!sel.isCollapsed?sel.toString():richPlain();
+        if(!value){msg('Nothing to copy yet.');break}
+        try{navigator.clipboard.writeText(value).then(()=>msg('Copied text.'),()=>msg('Use Ctrl+C to copy.'))}catch(e){msg('Use Ctrl+C to copy.')}
+        break;
+      }
       const s=ta.selectionStart,e=ta.selectionEnd;
       const text=s!==e?ta.value.slice(s,e):ta.value;
       if(!text){msg('Nothing to copy yet.');break}
