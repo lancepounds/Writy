@@ -1234,10 +1234,10 @@ function saveDocs(){
   try{const raw=localStorage.getItem('sw.docs');if(raw&&raw!==docsRaw)docsTakeIn(JSON.parse(raw))}catch(e){}
   docsWrite();
 }
-function schedSave(){
+function schedSave(keepRich){
   if(rd.on)stopSpeech();
   rgSched();
-  const d=curDoc();d.text=ta.value;if(!richOn)delete d.rich;d.updated=Math.max(Date.now(),(d.updated||0)+1);
+  const d=curDoc();d.text=ta.value;if(!richOn&&!keepRich)delete d.rich;d.updated=Math.max(Date.now(),(d.updated||0)+1);
   schedCheck();
   $('stSaved').textContent='Saving...';
   if(saveTimer)clearTimeout(saveTimer);
@@ -4664,7 +4664,7 @@ async function restoreVersion(i,el){
     if(typeof copy.rich==='string')doc.rich=copy.rich;else delete doc.rich;
     ta.value=doc.text;ta.setSelectionRange(doc.text.length,doc.text.length);
     if(richOn)richLoad();
-    histReset();renderNav();refresh();schedSave();
+    histReset();renderNav();refresh();schedSave(true);
     closeDlg();
     msg('Earlier draft restored. Your previous text is preserved under Previous versions.',8500);
   }catch(e){msg('Could not preserve the current draft; restore was cancelled. Download a backup and retry.',10000)}
