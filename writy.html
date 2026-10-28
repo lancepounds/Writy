@@ -1269,6 +1269,13 @@ function fmtEditDone(s,e){
 function fmtWrap(marker){
   if(fmtPreviewOn)fmtTogglePreview();
   const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,chunk=v.slice(s,e),n=marker.length;
+  if(chunk.includes('\n')){
+    const lines=chunk.split('\n'),nonempty=lines.filter(x=>x.trim());
+    const marked=nonempty.length>0&&nonempty.every(x=>x.startsWith(marker)&&x.endsWith(marker)&&x.length>=n*2);
+    const result=lines.map(line=>!line.trim()?line:marked?line.slice(n,-n):marker+line+marker).join('\n');
+    ta.setRangeText(result,s,e,'end');
+    fmtEditDone(s,s+result.length);return;
+  }
   if(s>=n&&v.slice(s-n,s)===marker&&v.slice(e,e+n)===marker){
     ta.setRangeText(chunk,s-n,e+n,'end');
     fmtEditDone(s-n,e-n);return;
