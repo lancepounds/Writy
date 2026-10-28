@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+/* A compact editor surface only inside Lance.os; direct Writy keeps its own chrome. */
+if (window.top !== window.self && new URLSearchParams(location.search).get('embed') === 'lanceos') {
+  document.documentElement.classList.add('lanceos-embedded');
+}
+</script>
 <meta name="description" content="Writy: a word prediction word processor. The words you are about to type, a tap away.">
 <link rel="manifest" href="writy.webmanifest">
 <meta name="theme-color" content="#0050EE">
@@ -657,6 +663,27 @@ html.gaze .wmlenrow{justify-content:space-between}
 @media not all and (any-pointer:fine){.pchip{pointer-events:none}}
 /* the gaze ring gets a light halo so it shows on the blue panels too */
 .gzring svg{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff)}
+
+/* When Lance.os supplies the XP window, Writy supplies only the editor.
+   The document title, Undo/Redo, menus, prediction modes and save status stay. */
+.embedded-menu{display:none}
+html.lanceos-embedded,html.lanceos-embedded body{height:100%}
+html.lanceos-embedded body{background:var(--paper);background-image:none}
+html.lanceos-embedded .desk,html.lanceos-embedded .desk.maximized{padding:0 !important}
+html.lanceos-embedded .window,html.lanceos-embedded .desk.maximized .window{
+  position:relative;width:100%;max-width:none;margin:0;border:0;border-radius:0;box-shadow:none
+}
+html.lanceos-embedded .titlebar,html.lanceos-embedded .taskbar{display:none !important}
+html.lanceos-embedded .navbar{padding:4px 10px}
+html.lanceos-embedded .address::before,html.lanceos-embedded .address .crumb,html.lanceos-embedded .address .sep{display:none}
+html.lanceos-embedded .toolbar{position:relative}
+html.lanceos-embedded .toolbar .embedded-menu{display:inline-flex;align-items:center}
+html.lanceos-embedded .toolbar>.startmenu{
+  position:absolute;left:8px;top:100%;bottom:auto;z-index:45;
+  width:min(320px,calc(100% - 16px));max-height:min(70vh,calc(100dvh - 110px));
+  overflow-y:auto;border:2px solid var(--frame);border-radius:0 0 6px 6px;
+  box-shadow:2px 4px 12px rgba(0,0,0,.35)
+}
 </style>
 </head>
 <body>
@@ -674,6 +701,7 @@ html.gaze .wmlenrow{justify-content:space-between}
       <div class="address"><span class="crumb">Writy</span><span class="sep"></span><input id="docTitle" type="text" aria-label="Document name" maxlength="80" autocomplete="off" spellcheck="false"></div>
     </div>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Tools">
+      <button class="tbtn embedded-menu" id="embeddedMenu" data-do="start" aria-controls="startmenu" aria-expanded="false">Menu</button>
       <button class="tbtn opt" data-do="new">New</button>
       <button class="tbtn" data-do="docs">Docs</button>
       <button class="tbtn opt" data-do="phrases">Phrases</button>
@@ -787,6 +815,11 @@ const SPELLARR="the to and of a in i is for that you it on with this was be as a
 
 /* ---------- small helpers ---------- */
 const $=id=>document.getElementById(id);
+if(document.documentElement.classList.contains('lanceos-embedded')){
+  // The original Start menu lives inside the hidden taskbar; move its node
+  // into the editor toolbar so all existing actions remain reachable.
+  $('toolbar').appendChild($('startmenu'));
+}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const S={
   get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -3928,7 +3961,10 @@ function closeDlg(){
   $('overlay').hidden=true;dlgKind=null;scanStart();
   if(fine)ta.focus({preventScroll:true});
 }
-function closeStart(){startOpen=false;$('startmenu').hidden=true;$('orb').setAttribute('aria-expanded','false')}
+function closeStart(){
+  startOpen=false;$('startmenu').hidden=true;$('orb').setAttribute('aria-expanded','false');
+  $('embeddedMenu').setAttribute('aria-expanded','false');
+}
 
 /* ---------- documents actions ---------- */
 function renderNav(){
@@ -4610,7 +4646,14 @@ function act(what,arg,el){
     case'settings':openDlg('settings');break;
     case'help':openDlg('help');break;
     case'closedlg':closeDlg();break;
-    case'start':{startOpen=!startOpen;if(startOpen){mwHide(0);wmClose();mmClose();smClose()}$('startmenu').hidden=!startOpen;$('orb').setAttribute('aria-expanded',startOpen);break}
+    case'start':{
+      startOpen=!startOpen;
+      if(startOpen){mwHide(0);wmClose();mmClose();smClose()}
+      $('startmenu').hidden=!startOpen;
+      $('orb').setAttribute('aria-expanded',String(startOpen));
+      $('embeddedMenu').setAttribute('aria-expanded',String(startOpen));
+      break;
+    }
     case'speak':doSpeak();break;
     case'voicenext':{const L=voiceOrder(),i=L.indexOf(cfg.voice||'');setVoice(L[(i+1)%L.length]);break}
     case'voicetry':speakNow(SAMPLE);break;
