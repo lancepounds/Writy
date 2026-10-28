@@ -163,6 +163,9 @@ button.cap{pointer-events:auto}
 
 
 /* Compact formatting controls and a read-only formatted preview. */
+.fmt-toggle{height:30px;padding:3px 10px;background:var(--btn);border:1px solid var(--edge);border-radius:3px;font-size:13px;color:var(--ink);white-space:nowrap}
+.fmt-toggle:hover,.fmt-toggle[aria-expanded="true"]{background:var(--btnpress);border-color:var(--signal)}
+.formatbar[hidden]{display:none!important}
 .formatbar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:5px var(--gx2) 5px var(--gx);flex:0 0 auto;background:var(--face);border-bottom:1px solid var(--face-dk)}
 .fmtlabel{font-weight:700;font-size:13px;color:var(--ink-soft);padding-right:5px}
 .fmtbtn{min-width:40px;min-height:40px;padding:6px 10px;background:var(--btn);border:1px solid var(--edge);border-radius:3px;font-size:14px;color:var(--ink);box-shadow:inset -1px -1px 0 rgba(0,0,0,.08)}
@@ -717,6 +720,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="navbtn" id="btnUndo" data-do="undo" aria-label="Undo" title="Undo">&#9664;</button>
       <button class="navbtn" id="btnRedo" data-do="redo" aria-label="Redo" title="Redo">&#9654;</button>
       <div class="address"><span class="crumb">Writy</span><span class="sep"></span><input id="docTitle" type="text" aria-label="Document name" maxlength="80" autocomplete="off" spellcheck="false"></div>
+      <button class="fmt-toggle" id="btnFormat" data-do="fmttoggle" aria-controls="formatbar" aria-expanded="false" title="Show or hide the text formatting bar">Format</button>
     </div>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Tools">
       <button class="tbtn opt" data-do="new">New</button>
@@ -745,7 +749,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="tbtn gzonly" id="gazeCal" data-do="gazecal" hidden>Recalibrate</button>
       <button class="tbtn gzonly" id="gazePause" data-do="gazepause" aria-pressed="false" aria-label="Pause eye control">Pause gaze</button>
     </div>
-    <div class="formatbar" id="formatbar" role="toolbar" aria-label="Text formatting">
+    <div class="formatbar" id="formatbar" role="toolbar" aria-label="Text formatting" hidden>
       <span class="fmtlabel">Format</span>
       <button class="fmtbtn fmtbold" data-do="fmtbold" type="button" title="Bold (Ctrl+B)" aria-label="Bold selected text">B</button>
       <button class="fmtbtn fmtitalic" data-do="fmtitalic" type="button" title="Italic (Ctrl+I)" aria-label="Italic selected text">I</button>
@@ -1261,6 +1265,11 @@ function histGo(dir){
 /* ---------- text formatting and safe read-only preview ----------
    The textarea remains the source of truth for predictions, saving and backups. */
 let fmtPreviewOn=false;
+function fmtSetOpen(open){
+  $('formatbar').hidden=!open;
+  $('btnFormat').setAttribute('aria-expanded',String(open));
+  requestAnimationFrame(()=>{twLayout();refresh()});
+}
 function fmtEditDone(s,e){
   ta.setSelectionRange(s,e);
   autoSpaceIdx=-1;pushHist(false);refresh();schedSave();
@@ -4757,6 +4766,7 @@ function act(what,arg,el){
     case'ddopen':{const i=+arg;if(menu.side==='over'&&menu.active===i)menuActivate(-1);else menuActivate(i);break}
     case'key':keyPress(arg);break;
     case'kbsize':setKeyh(cfg.keyh+(+arg)*4);if(fine&&cfg.keys)ta.focus({preventScroll:true});break;
+    case'fmttoggle':fmtSetOpen($('formatbar').hidden);break;
     case'fmtbold':fmtWrap('**');break;
     case'fmtitalic':fmtWrap('*');break;
     case'fmtunderline':fmtWrap('++');break;
@@ -4985,6 +4995,7 @@ window.addEventListener('storage',e=>{
   ta.value=d.text;
   ta.setSelectionRange(d.text.length,d.text.length);
   histReset();renderNav();applyCfg();setSpeakLabel();appHint();tabletTip();instSync();
+  fmtSetOpen(window.innerHeight>=900);
   ta.disabled=false;$('docTitle').disabled=false;
   ta.scrollTop=ta.scrollHeight;twCenter();placeFloat();syncWindowMode();
   docsWrite(); /* seed IndexedDB on migration, or refresh the browser fallback */
