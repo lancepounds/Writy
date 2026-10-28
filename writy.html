@@ -2311,6 +2311,11 @@ ta.addEventListener('keydown',e=>{
     if(curSug[i]&&(!treeMode||i<tree.N)){e.preventDefault();if(treeMode)takeTree(i,-1);else accept(curSug[i])}
     return;
   }
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&['b','i','u'].includes(e.key.toLowerCase())){
+    e.preventDefault();
+    act(({b:'fmtbold',i:'fmtitalic',u:'fmtunderline'})[e.key.toLowerCase()]);
+    return;
+  }
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();act('speak');return}
   if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();histGo(-1);return}
   if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();histGo(1);return}
@@ -4098,6 +4103,7 @@ function renderNav(){
   document.title='Writy';
 }
 function loadDoc(id){
+  if(fmtPreviewOn)fmtTogglePreview();
   if(!docs.some(d=>d.id===id))return;
   if(rd.on)stopSpeech();
   rg.label='';rgSched();
@@ -4469,8 +4475,8 @@ function exportDoc(kind){
   if(kind==='txt'){
     saveAs(fileName(title)+'.txt',d.text.replace(/\r?\n/g,'\r\n'),'text/plain');
   }else{
-    const body=d.text.split(/\n{2,}/).map(p=>'<p>'+esc(p).replace(/\n/g,'<br>')+'</p>').join('');
-    const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.4}p{margin:0 0 12pt}</style></head><body>'+body+'</body></html>';
+    const body=formatPreviewHtml(d.text);
+    const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.4}p{margin:0 0 12pt}h1{font-size:19pt}h2{font-size:15pt}blockquote{margin:10pt 0;padding-left:12pt;border-left:3pt solid #777}li{margin:3pt 0}</style></head><body>'+body+'</body></html>';
     saveAs(fileName(title)+'.doc','\ufeff'+html,'application/msword');
   }
   msg('Saved to your downloads. If nothing downloaded, use Copy all.');
@@ -4744,6 +4750,15 @@ function act(what,arg,el){
     case'ddopen':{const i=+arg;if(menu.side==='over'&&menu.active===i)menuActivate(-1);else menuActivate(i);break}
     case'key':keyPress(arg);break;
     case'kbsize':setKeyh(cfg.keyh+(+arg)*4);if(fine&&cfg.keys)ta.focus({preventScroll:true});break;
+    case'fmtbold':fmtWrap('**');break;
+    case'fmtitalic':fmtWrap('*');break;
+    case'fmtunderline':fmtWrap('++');break;
+    case'fmth1':fmtLines('h1');break;
+    case'fmth2':fmtLines('h2');break;
+    case'fmtbullet':fmtLines('bullet');break;
+    case'fmtnumber':fmtLines('number');break;
+    case'fmtquote':fmtLines('quote');break;
+    case'fmtpreview':fmtTogglePreview();break;
     case'undo':histGo(-1);break;
     case'redo':histGo(1);break;
     case'new':closeStart();closeDlg();newDoc();break;
@@ -4887,7 +4902,7 @@ document.addEventListener('click',e=>{
   if(b&&b.dataset.do!=='start'&&startOpen&&!b.closest('.startmenu'))closeStart();
 });
 document.addEventListener('mousedown',e=>{
-  if(e.target.closest('.sug,.key,.tbtn,.navbtn,.switchbar button,.edscroll button,.chkbtn,.treebox,.dialbox,.ddmenu,.floatsug,.wmitem,.phrbox'))e.preventDefault();
+  if(e.target.closest('.sug,.key,.tbtn,.fmtbtn,.navbtn,.switchbar button,.edscroll button,.chkbtn,.treebox,.dialbox,.ddmenu,.floatsug,.wmitem,.phrbox'))e.preventDefault();
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
