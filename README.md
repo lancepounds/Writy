@@ -31,7 +31,7 @@ Use non-sensitive test documents:
 
 ## Formatting toolbar
 
-Writy now has a **Format** bar above the writing area with **Bold**, *Italic*, Underline, H1/H2 headings, bulleted lists, numbered lists, block quotes, and **Preview / Edit**. Select text for inline styling, or put the cursor on a line to format its paragraph. Ctrl/Cmd+B, Ctrl/Cmd+I, and Ctrl/Cmd+U also work.
+Press **Format** next to the document name to show or hide the formatting bar (it opens automatically on taller screens). The bar includes **Bold**, *Italic*, Underline, H1/H2 headings, bulleted lists, numbered lists, block quotes, and **Preview / Edit**. Select text for inline styling, or put the cursor on a line to format its paragraph. Ctrl/Cmd+B, Ctrl/Cmd+I, and Ctrl/Cmd+U also work.
 
 Writy intentionally keeps a plain-text editor to preserve cursor-based word prediction, accessibility tools, local-first saving, and edit recovery. The formatting is stored as lightweight markup in the text: `**bold**`, `*italic*`, `++underline++`, `# Heading`, `- List item`, and so on. **Preview** shows the rendered formatting without changing the saved text. **Word file (.doc)** exports rendered styling; **Plain text (.txt)** retains the markup so it can be edited again. This is not yet a full WYSIWYG word processor.
 
