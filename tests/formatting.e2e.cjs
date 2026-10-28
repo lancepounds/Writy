@@ -5,6 +5,8 @@ async function ready(page){
   await page.goto('/writy.html');
   await expect(page.locator('#ed')).toBeEnabled();
   await expect(page.locator('#stSaved')).not.toHaveText('Loading documents...');
+  if(await page.locator('#formatbar').isHidden())await page.locator('#btnFormat').click();
+  await expect(page.locator('#formatbar')).toBeVisible();
 }
 test('bold formatting previews correctly and survives reload',async({page})=>{
   await ready(page);
