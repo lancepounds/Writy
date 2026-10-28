@@ -9,7 +9,9 @@ test('Writy inside Lance.os uses one window frame and retains its writing contro
   await expect(app.locator('.titlebar')).toBeHidden();
   await expect(app.locator('.taskbar')).toBeHidden();
   await expect(app.locator('#docTitle')).toBeVisible();
-  await expect(app.locator('#embeddedMenu')).toBeVisible();
+  await expect(app.locator('#embeddedMenu')).toHaveCount(0);
+  await expect(app.locator('#startmenu')).toBeHidden();
+  await expect(app.locator('#toolbar [data-do=settings]')).toBeVisible();
   await expect(app.locator('#stSaved')).toBeVisible();
   const chrome=await app.locator('.window').evaluate(el=>{
     const styles=getComputedStyle(el),desk=getComputedStyle(document.querySelector('.desk'));
@@ -18,12 +20,11 @@ test('Writy inside Lance.os uses one window frame and retains its writing contro
   expect(chrome.border).toBe('0px');
   expect(chrome.padding).toBe('0px');
   expect(chrome.maxWidth).toBe('none');
-  await app.locator('#embeddedMenu').click();
-  await expect(app.locator('#startmenu')).toBeVisible();
-  await expect(app.locator('#embeddedMenu')).toHaveAttribute('aria-expanded','true');
-  await app.locator('#startmenu [data-do=backup]').click();
+  // Backup is available directly on the writing toolbar without a second
+  // Start menu; the original Start menu remains inaccessible in this view.
+  await app.locator('#toolbar [data-do=backup]').click();
   await expect(app.locator('#overlay')).toBeVisible();
-  await expect(app.locator('#embeddedMenu')).toHaveAttribute('aria-expanded','false');
+  await expect(app.locator('#startmenu')).toBeHidden();
   await app.locator('[data-do=closedlg]').click();
   await app.locator('#ed').fill('Writy embedded writing test.');
   await expect(app.locator('#stSaved')).toHaveText('Saved on this device',{timeout:15000});
@@ -35,7 +36,8 @@ test('opening Writy directly retains its own XP window and Start taskbar',async(
   await expect(page.locator('html')).not.toHaveClass(/lanceos-embedded/);
   await expect(page.locator('.titlebar')).toBeVisible();
   await expect(page.locator('.taskbar')).toBeVisible();
-  await expect(page.locator('#embeddedMenu')).toBeHidden();
+  await expect(page.locator('#orb')).toBeVisible();
+  await expect(page.locator('#embeddedMenu')).toHaveCount(0);
   const windowBorder=await page.locator('.window').evaluate(el=>getComputedStyle(el).borderLeftWidth);
   expect(windowBorder).not.toBe('0px');
 });
