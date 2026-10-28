@@ -161,6 +161,31 @@ button.cap{pointer-events:auto}
   .opt,.tsep{display:none}
 }
 
+
+/* Compact formatting controls and a read-only formatted preview. */
+.formatbar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:5px var(--gx2) 5px var(--gx);flex:0 0 auto;background:var(--face);border-bottom:1px solid var(--face-dk)}
+.fmtlabel{font-weight:700;font-size:13px;color:var(--ink-soft);padding-right:5px}
+.fmtbtn{min-width:40px;min-height:40px;padding:6px 10px;background:var(--btn);border:1px solid var(--edge);border-radius:3px;font-size:14px;color:var(--ink);box-shadow:inset -1px -1px 0 rgba(0,0,0,.08)}
+.fmtbtn:hover,.fmtbtn:focus-visible{box-shadow:inset 0 0 0 2px var(--hot)}
+.fmtbtn:active,.fmtbtn[aria-pressed="true"]{background:var(--btnpress);border-color:var(--signal)}
+.fmtbtn.fmtbold{font-weight:800}.fmtbtn.fmtitalic{font-style:italic}.fmtbtn.fmtunderline{text-decoration:underline}
+.fmthelp{font-size:12px;color:var(--ink-soft);margin-left:auto}
+.fmtpreview{flex:1;min-width:0;overflow:auto;padding:20px 24px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-family:var(--edfont);font-size:clamp(16px,var(--edsize),36px);line-height:var(--edline);overflow-wrap:anywhere}
+.fmtpreview h1{font-size:1.55em;margin:.4em 0 .65em;line-height:1.2}
+.fmtpreview h2{font-size:1.25em;margin:.5em 0 .65em;line-height:1.25}
+.fmtpreview p{margin:0 0 .75em}.fmtpreview ul,.fmtpreview ol{padding-left:1.7em;margin:.3em 0 .8em}
+.fmtpreview li{margin:.15em 0}
+.fmtpreview blockquote{border-left:4px solid var(--signal);padding:.25em .8em;margin:.35em 0 .8em;color:var(--ink-soft)}
+.fmtpreview .fmtempty{font-style:italic;color:var(--ink-soft)}
+.editor.is-preview .edwrap{display:none}
+.editor:not(.is-preview) .fmtpreview{display:none}
+@media (max-width:640px){
+  .formatbar{gap:4px;padding:5px var(--gx2) 5px var(--gx)}
+  .fmtlabel,.fmthelp{display:none}
+  .fmtbtn{flex:1 1 auto;min-width:40px;min-height:42px;padding:7px 5px}
+}
+html.gaze .fmtbtn,html.tablet .fmtbtn{min-height:52px;min-width:52px}
+
 /* frame */
 .frame{flex:1;min-height:0;display:flex;background:var(--paper);border-top:1px solid var(--off)}
 .navpane{display:none}
@@ -720,6 +745,19 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="tbtn gzonly" id="gazeCal" data-do="gazecal" hidden>Recalibrate</button>
       <button class="tbtn gzonly" id="gazePause" data-do="gazepause" aria-pressed="false" aria-label="Pause eye control">Pause gaze</button>
     </div>
+    <div class="formatbar" id="formatbar" role="toolbar" aria-label="Text formatting">
+      <span class="fmtlabel">Format</span>
+      <button class="fmtbtn fmtbold" data-do="fmtbold" type="button" title="Bold (Ctrl+B)" aria-label="Bold selected text">B</button>
+      <button class="fmtbtn fmtitalic" data-do="fmtitalic" type="button" title="Italic (Ctrl+I)" aria-label="Italic selected text">I</button>
+      <button class="fmtbtn fmtunderline" data-do="fmtunderline" type="button" title="Underline (Ctrl+U)" aria-label="Underline selected text">U</button>
+      <button class="fmtbtn" data-do="fmth1" type="button" title="Heading 1 for the current line">H1</button>
+      <button class="fmtbtn" data-do="fmth2" type="button" title="Heading 2 for the current line">H2</button>
+      <button class="fmtbtn" data-do="fmtbullet" type="button" title="Bulleted list">• List</button>
+      <button class="fmtbtn" data-do="fmtnumber" type="button" title="Numbered list">1. List</button>
+      <button class="fmtbtn" data-do="fmtquote" type="button" title="Block quote">Quote</button>
+      <button class="fmtbtn" id="fmtPreviewBtn" data-do="fmtpreview" type="button" title="See document with formatting applied" aria-pressed="false">Preview</button>
+      <span class="fmthelp">Select text to style it, or put the cursor on a line.</span>
+    </div>
     <div class="frame">
       <aside class="navpane" aria-label="Documents and phrases">
         <div class="nphead">Documents</div>
@@ -736,6 +774,7 @@ html.lanceos-embedded #startmenu{display:none !important}
         <section class="editor">
           <div class="edscroll" aria-label="Scroll the text"><button class="act" data-do="edup" aria-label="Scroll the text up">&#9650;</button><button class="act" data-do="eddown" aria-label="Scroll the text down">&#9660;</button></div>
           <div class="edwrap"><div class="linehi" id="linehi" aria-hidden="true" hidden></div><div class="backdrop" id="backdrop" aria-hidden="true"></div><textarea id="ed" aria-label="Document text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter"></textarea></div>
+          <div class="fmtpreview" id="fmtpreview" role="region" aria-label="Formatted document preview" tabindex="0"></div>
         </section>
         <section class="kb" id="kb" aria-label="On-screen keyboard" hidden></section>
         <div class="switchbar" id="switchbar" hidden><button class="act" id="switchBtn" data-do="switch">Select (or press Space)</button></div>
