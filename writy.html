@@ -666,7 +666,6 @@ html.gaze .wmlenrow{justify-content:space-between}
 
 /* When Lance.os supplies the XP window, Writy supplies only the editor.
    The document title, Undo/Redo, menus, prediction modes and save status stay. */
-.embedded-menu{display:none}
 html.lanceos-embedded,html.lanceos-embedded body{height:100%}
 html.lanceos-embedded body{background:var(--paper);background-image:none}
 html.lanceos-embedded .desk,html.lanceos-embedded .desk.maximized{padding:0 !important}
@@ -676,14 +675,8 @@ html.lanceos-embedded .window,html.lanceos-embedded .desk.maximized .window{
 html.lanceos-embedded .titlebar,html.lanceos-embedded .taskbar{display:none !important}
 html.lanceos-embedded .navbar{padding:4px 10px}
 html.lanceos-embedded .address::before,html.lanceos-embedded .address .crumb,html.lanceos-embedded .address .sep{display:none}
-html.lanceos-embedded .toolbar{position:relative}
-html.lanceos-embedded .toolbar .embedded-menu{display:inline-flex;align-items:center}
-html.lanceos-embedded .toolbar>.startmenu{
-  position:absolute;left:8px;top:100%;bottom:auto;z-index:45;
-  width:min(320px,calc(100% - 16px));max-height:min(70vh,calc(100dvh - 110px));
-  overflow-y:auto;border:2px solid var(--frame);border-radius:0 0 6px 6px;
-  box-shadow:2px 4px 12px rgba(0,0,0,.35)
-}
+/* Lance.os owns the only Start menu in embedded mode. */
+html.lanceos-embedded #startmenu{display:none !important}
 </style>
 </head>
 <body>
@@ -701,7 +694,6 @@ html.lanceos-embedded .toolbar>.startmenu{
       <div class="address"><span class="crumb">Writy</span><span class="sep"></span><input id="docTitle" type="text" aria-label="Document name" maxlength="80" autocomplete="off" spellcheck="false"></div>
     </div>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Tools">
-      <button class="tbtn embedded-menu" id="embeddedMenu" data-do="start" aria-controls="startmenu" aria-expanded="false">Menu</button>
       <button class="tbtn opt" data-do="new">New</button>
       <button class="tbtn" data-do="docs">Docs</button>
       <button class="tbtn opt" data-do="phrases">Phrases</button>
@@ -815,11 +807,6 @@ const SPELLARR="the to and of a in i is for that you it on with this was be as a
 
 /* ---------- small helpers ---------- */
 const $=id=>document.getElementById(id);
-if(document.documentElement.classList.contains('lanceos-embedded')){
-  // The original Start menu lives inside the hidden taskbar; move its node
-  // into the editor toolbar so all existing actions remain reachable.
-  $('toolbar').appendChild($('startmenu'));
-}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const S={
   get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -3961,10 +3948,7 @@ function closeDlg(){
   $('overlay').hidden=true;dlgKind=null;scanStart();
   if(fine)ta.focus({preventScroll:true});
 }
-function closeStart(){
-  startOpen=false;$('startmenu').hidden=true;$('orb').setAttribute('aria-expanded','false');
-  $('embeddedMenu').setAttribute('aria-expanded','false');
-}
+function closeStart(){startOpen=false;$('startmenu').hidden=true;$('orb').setAttribute('aria-expanded','false')}
 
 /* ---------- documents actions ---------- */
 function renderNav(){
@@ -4647,11 +4631,12 @@ function act(what,arg,el){
     case'help':openDlg('help');break;
     case'closedlg':closeDlg();break;
     case'start':{
+      // Lance.os supplies the Start menu for embedded Writy.
+      if(document.documentElement.classList.contains('lanceos-embedded')){closeStart();break}
       startOpen=!startOpen;
       if(startOpen){mwHide(0);wmClose();mmClose();smClose()}
       $('startmenu').hidden=!startOpen;
       $('orb').setAttribute('aria-expanded',String(startOpen));
-      $('embeddedMenu').setAttribute('aria-expanded',String(startOpen));
       break;
     }
     case'speak':doSpeak();break;
