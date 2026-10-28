@@ -889,7 +889,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const fine=!matchMedia('(pointer: coarse)').matches;
 
 /* ---------- settings ---------- */
-const DEF={theme:'auto',font:'atkinson',size:30,line:1.5,nsug:5,rows:2,place:'tree',lastPlace:'around',treeN:5,treeKids:2,menuN:6,menuKids:5,gaze:false,gazeSrc:'pointer',abbr:true,autofix:true,dblspace:true,holdIgnore:true,bounce:0,sticky:false,lineHi:true,typewriter:true,phrPanel:true,gazeDwellOn:true,gazeTime:1,gazeSnap:40,gazeRing:true,check:true,arrowPick:true,sugsize:26,dwell:0,scan:false,scanSpeed:1.3,keys:false,keyh:60,mwN:6,mwHold:0.15,phrN:3,phrW:5,wlen:0,mailer:'gmail',hide:[],ksShow:true,voice:'',rgShow:true,tablet:false,
+const DEF={theme:'auto',font:'atkinson',size:30,line:1.5,nsug:5,rows:2,place:'tree',lastPlace:'around',treeN:5,treeKids:2,menuN:6,menuKids:5,gaze:false,gazeSrc:'pointer',abbr:true,autofix:true,dblspace:true,holdIgnore:true,bounce:0,sticky:false,lineHi:true,typewriter:true,phrPanel:true,gazeDwellOn:true,gazeTime:1,gazeSnap:40,gazeRing:true,check:true,arrowPick:true,sugsize:26,dwell:0,scan:false,scanSpeed:1.3,keys:false,keyh:60,mwN:6,mwHold:0.15,phrN:3,phrW:5,wlen:0,mailer:'gmail',hide:[],ksShow:true,voice:'',rgShow:true,tablet:false,richMode:false,
   speakWords:false,speakSentences:false,rate:1,autocap:true,autospace:true,learn:true};
 const savedCfg=S.get('sw.cfg',{});
 let cfgMigrated=false;
@@ -1308,6 +1308,7 @@ function fmtEditDone(s,e){
   ta.focus({preventScroll:true});
 }
 function fmtWrap(marker){
+  if(richOn){richCommand(({ '**':'bold','*':'italic','++':'underline'})[marker]);return}
   if(fmtPreviewOn)fmtTogglePreview();
   const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,chunk=v.slice(s,e),n=marker.length;
   if(chunk.includes('\n')){
@@ -1334,6 +1335,7 @@ function fmtWrap(marker){
   }
 }
 function fmtLines(mode){
+  if(richOn){richFormat(mode);return}
   if(fmtPreviewOn)fmtTogglePreview();
   const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,
     start=v.lastIndexOf('\n',Math.max(0,s-1))+1,
@@ -1390,13 +1392,14 @@ function formatPreviewHtml(raw){
   return out||'<p class="fmtempty">Nothing to preview yet.</p>';
 }
 function fmtTogglePreview(){
+  if(richOn)richToggle(false);
   fmtPreviewOn=!fmtPreviewOn;
   const editor=document.querySelector('.editor'),btn=$('fmtPreviewBtn');
   editor.classList.toggle('is-preview',fmtPreviewOn);
   btn.setAttribute('aria-pressed',String(fmtPreviewOn));
   btn.textContent=fmtPreviewOn?'Edit':'Preview';
   if(fmtPreviewOn){
-    $('fmtpreview').innerHTML=formatPreviewHtml(ta.value);
+    $('fmtpreview').innerHTML=curDoc().rich?richSanitize(curDoc().rich):formatPreviewHtml(ta.value);
     $('fmtpreview').focus({preventScroll:true});
     pickClear();
   }else{
@@ -4321,7 +4324,7 @@ function openDlg(kind){
 function closeDlg(){
   if($('overlay').hidden)return;
   $('overlay').hidden=true;dlgKind=null;scanStart();
-  if(fine)ta.focus({preventScroll:true});
+  if(fine)(richOn?richEl:ta).focus({preventScroll:true});
 }
 function closeStart(){startOpen=false;$('startmenu').hidden=true;$('orb').setAttribute('aria-expanded','false')}
 
@@ -4986,6 +4989,7 @@ function act(what,arg,el){
     case'key':keyPress(arg);break;
     case'kbsize':setKeyh(cfg.keyh+(+arg)*4);if(fine&&cfg.keys)ta.focus({preventScroll:true});break;
     case'fmttoggle':fmtSetOpen($('formatbar').hidden);break;
+    case'richmode':richToggle(!richOn);break;
     case'fmtbold':fmtWrap('**');break;
     case'fmtitalic':fmtWrap('*');break;
     case'fmtunderline':fmtWrap('++');break;
@@ -4994,6 +4998,9 @@ function act(what,arg,el){
     case'fmtbullet':fmtLines('bullet');break;
     case'fmtnumber':fmtLines('number');break;
     case'fmtquote':fmtLines('quote');break;
+    case'fmtleft':richOn?richFormat('left'):msg('Turn on Rich text to align paragraphs.');break;
+    case'fmtcenter':richOn?richFormat('center'):msg('Turn on Rich text to align paragraphs.');break;
+    case'fmtright':richOn?richFormat('right'):msg('Turn on Rich text to align paragraphs.');break;
     case'fmtpreview':fmtTogglePreview();break;
     case'undo':histGo(-1);break;
     case'redo':histGo(1);break;
@@ -5215,11 +5222,12 @@ window.addEventListener('storage',e=>{
   ta.setSelectionRange(d.text.length,d.text.length);
   histReset();renderNav();applyCfg();setSpeakLabel();appHint();tabletTip();instSync();
   fmtSetOpen(window.innerHeight>=900);
-  ta.disabled=false;$('docTitle').disabled=false;
+  ta.disabled=false;
+  if(cfg.richMode)richToggle(true);$('docTitle').disabled=false;
   ta.scrollTop=ta.scrollHeight;twCenter();placeFloat();syncWindowMode();
   docsWrite(); /* seed IndexedDB on migration, or refresh the browser fallback */
   if(!storeAvailable)msg('Saving uses browser storage only. Use Backup → Save backup file regularly.',10000);
-  if(fine)ta.focus({preventScroll:true});
+  if(fine)(richOn?richEl:ta).focus({preventScroll:true});
 })();
 })();
 </script>
