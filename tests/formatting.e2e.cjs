@@ -22,6 +22,7 @@ test('bold formatting previews correctly and survives reload',async({page})=>{
   await expect(page.locator('#stSaved')).toHaveText('Saved on this device',{timeout:15000});
   await page.reload();
   await expect(ed).toHaveValue('**Writy** helps me write.');
+  if(await page.locator('#formatbar').isHidden())await page.locator('#btnFormat').click();
   await page.locator('#fmtPreviewBtn').click();
   await expect(page.locator('#fmtpreview strong')).toHaveText('Writy');
 });
