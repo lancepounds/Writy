@@ -1165,7 +1165,7 @@ function docsWrite(){
     saveFailed=!mirrorOK;setSavedStatus(mirrorOK?'Saved in browser storage':'NOT SAVED — use Backup');
     return mirrorOK;
   }
-  const snapshot=docs.map(d=>({id:d.id,title:d.title,text:d.text,updated:d.updated}));
+  const snapshot=docs.map(d=>({id:d.id,title:d.title,text:d.text,...(typeof d.rich==='string'?{rich:d.rich}:{}),updated:d.updated}));
   const gone=goneGet(),active=curId,sequence=++storeSequence;
   setSavedStatus('Saving on device...');
   storeQueue=storeQueue.catch(()=>{}).then(()=>WrityStore.write(snapshot,gone,active))
@@ -1200,8 +1200,8 @@ function docsMerge(st){
   st.forEach(sd=>{
     if(!sd||typeof sd.text!=='string'||!sd.id)return;
     const su=+sd.updated||0,d=docs.find(x=>x.id===sd.id);
-    if(!d){if(!(gone[sd.id]&&gone[sd.id]>=su)){docs.push({id:sd.id,title:String(sd.title||'Untitled'),text:sd.text,updated:su});r.changed=true}}
-    else if(su>(d.updated||0)){d.title=String(sd.title||d.title);d.text=sd.text;d.updated=su;r.changed=true;if(d.id===curId)r.cur=true}
+    if(!d){if(!(gone[sd.id]&&gone[sd.id]>=su)){docs.push({id:sd.id,title:String(sd.title||'Untitled'),text:sd.text,...(typeof sd.rich==='string'?{rich:sd.rich}:{}),updated:su});r.changed=true}}
+    else if(su>(d.updated||0)){d.title=String(sd.title||d.title);d.text=sd.text;if(typeof sd.rich==='string')d.rich=sd.rich;else delete d.rich;d.updated=su;r.changed=true;if(d.id===curId)r.cur=true}
   });
   const n=docs.length;
   docs=docs.filter(d=>d.id===curId||!(gone[d.id]&&gone[d.id]>=(d.updated||0)));
@@ -1211,17 +1211,18 @@ function docsMerge(st){
 function docsTakeIn(st){
   const r=docsMerge(st);if(!r.changed)return;
   const d=curDoc();
-  if(r.cur&&d&&ta.value!==d.text){
+  if(r.cur&&d&&(ta.value!==d.text||(richOn&&richSanitize(richEl.innerHTML)!==(d.rich||'')))){
     /* A newer edit arrived from another window. Preserve the entire local
        editor text as a separately reopenable document BEFORE replacing it. */
     if(rd.on)stopSpeech();
     const oldText=ta.value;
     const copy={id:uid(),title:(d.title||'Untitled')+' (window conflict copy)',
-      text:oldText,updated:Date.now()};
+      text:oldText,...(richOn?{rich:richSanitize(richEl.innerHTML)}:{}),updated:Date.now()};
     docs.push(copy);
     if(saveTimer){clearTimeout(saveTimer);saveTimer=null}
     const a=ta.selectionStart,b=ta.selectionEnd,top=ta.scrollTop;
     ta.value=d.text;ta.setSelectionRange(Math.min(a,ta.value.length),Math.min(b,ta.value.length));ta.scrollTop=top;
+    if(richOn)richLoad();
     histReset();autoSpaceIdx=-1;refresh();schedCheck();rgSched();
     docsWrite();
     msg('Both edits were kept. Open Documents for the window conflict copy.',11000);
@@ -1236,7 +1237,7 @@ function saveDocs(){
 function schedSave(){
   if(rd.on)stopSpeech();
   rgSched();
-  const d=curDoc();d.text=ta.value;d.updated=Math.max(Date.now(),(d.updated||0)+1);
+  const d=curDoc();d.text=ta.value;if(!richOn)delete d.rich;d.updated=Math.max(Date.now(),(d.updated||0)+1);
   schedCheck();
   $('stSaved').textContent='Saving...';
   if(saveTimer)clearTimeout(saveTimer);
@@ -1284,6 +1285,7 @@ function pushHist(letter){
   histState.lastLetter=!!letter;histState.t=Date.now();
 }
 function histGo(dir){
+  if(richOn){richEl.focus({preventScroll:true});document.execCommand(dir<0?'undo':'redo');richCommit();return}
   tally(1,0);
   const ni=histState.i+dir;if(ni<0||ni>=hist.length)return;
   histState.i=ni;histState.lastLetter=false;
@@ -1723,6 +1725,7 @@ function placeLineHi(){
   el.hidden=false;el.style.top=Math.round(top)+'px';el.style.height=Math.round(h)+'px';
 }
 function placeFloat(){
+  if(richOn){arrange('below');return}
   placeLineHi();
   if(cfg.place==='tree'){placeTree();return}
   if(cfg.place==='dial'){placeDial();return}
@@ -1763,9 +1766,9 @@ function placeFloat(){
 let refreshQueued=false;
 function refresh(){
   const st=curState();
-  const treeMode=isWT(),mouseMode=cfg.place==='mouse',phrMode=cfg.place==='phrase';
+  const treeMode=!richOn&&isWT(),mouseMode=!richOn&&cfg.place==='mouse',phrMode=!richOn&&cfg.place==='phrase';
   const scored=phrMode?predict(st.prefix,st.ctx,Math.max(phrW(),5)+1,1).filter(e=>e[0]!=='</s>').slice(0,Math.max(phrW(),5)):null;
-  const raw=phrMode?(wlenRule()?predict(st.prefix,st.ctx,Math.max(phrW(),5)):scored.map(e=>e[0])):predict(st.prefix,st.ctx,treeMode?wtN():mouseMode?mwN():layout.n);
+  const raw=phrMode?(wlenRule()?predict(st.prefix,st.ctx,Math.max(phrW(),5)):scored.map(e=>e[0])):predict(st.prefix,st.ctx,richOn?Math.min(5,layout.cols):treeMode?wtN():mouseMode?mwN():layout.n);
   const pv=/([A-Za-z'’]+)[^A-Za-z'’]*$/.exec(ta.value.slice(Math.max(0,st.s-160),st.s)),pUp=!!pv&&/^[A-Z]/.test(pv[1]);
   curSug=raw.map(w=>fmt(w,st.prefix,st.start,st.ctx[st.ctx.length-1],pUp));
   if(treeMode)buildTree(st,raw);
@@ -1783,9 +1786,10 @@ function refresh(){
   placeFloat();
 }
 function queueRefresh(){if(refreshQueued)return;refreshQueued=true;requestAnimationFrame(()=>{refreshQueued=false;refresh()})}
-function updateUndo(){$('btnUndo').disabled=histState.i<=0;$('btnRedo').disabled=histState.i>=hist.length-1}
+function updateUndo(){$('btnUndo').disabled=!richOn&&histState.i<=0;$('btnRedo').disabled=!richOn&&histState.i>=hist.length-1}
 function keepCaretVisible(){if(cfg.typewriter){twCenter();return}if(ta.selectionStart>=ta.value.length-1)ta.scrollTop=ta.scrollHeight}
 function accept(word,quiet,said){
+  if(richOn){richAccept(word,quiet);return}
   const st=curState(),v=ta.value;
   let lead='';
   if(!st.prefix&&!st.replace&&st.s>0&&!/[\s(\["“'-]/.test(v[st.s-1]))lead=' ';
@@ -4338,6 +4342,7 @@ function loadDoc(id){
   if(!docs.some(d=>d.id===id))return;
   curId=id;const d=curDoc();
   ta.value=d.text;ta.setSelectionRange(d.text.length,d.text.length);
+  if(richOn)richLoad();
   histReset();autoSpaceIdx=-1;ta.scrollTop=ta.scrollHeight;twCenter();
   S.set('sw.cur',curId);
   renderNav();refresh();runCheck();
@@ -4651,9 +4656,11 @@ async function restoreVersion(i,el){
     await storeQueue;
     if(id!==curId)return;
     const doc=curDoc();
-    await WrityStore.pin({id:doc.id,title:doc.title,text:ta.value,updated:doc.updated});
+    await WrityStore.pin({id:doc.id,title:doc.title,text:ta.value,...(typeof doc.rich==='string'?{rich:doc.rich}:{}),updated:doc.updated});
     doc.text=copy.text;doc.title=copy.title||doc.title;
+    if(typeof copy.rich==='string')doc.rich=copy.rich;else delete doc.rich;
     ta.value=doc.text;ta.setSelectionRange(doc.text.length,doc.text.length);
+    if(richOn)richLoad();
     histReset();renderNav();refresh();schedSave();
     closeDlg();
     msg('Earlier draft restored. Your previous text is preserved under Previous versions.',8500);
@@ -4702,7 +4709,7 @@ function exportDoc(kind){
   if(kind==='txt'){
     saveAs(fileName(title)+'.txt',d.text.replace(/\r?\n/g,'\r\n'),'text/plain');
   }else{
-    const body=formatPreviewHtml(d.text);
+    const body=d.rich?richSanitize(d.rich):formatPreviewHtml(d.text);
     const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.4}p{margin:0 0 12pt}h1{font-size:19pt}h2{font-size:15pt}blockquote{margin:10pt 0;padding-left:12pt;border-left:3pt solid #777}li{margin:3pt 0}</style></head><body>'+body+'</body></html>';
     saveAs(fileName(title)+'.doc','\ufeff'+html,'application/msword');
   }
@@ -4791,8 +4798,8 @@ function restoreFrom(text){
     const id=typeof nd.id==='string'&&nd.id?nd.id:uid();
     const incoming=Math.max(+nd.updated||0,deletedBeforeRestore[id]?Math.max(Date.now(),+deletedBeforeRestore[id]+1):0);
     const ex=docs.find(x=>x.id===id);
-    if(!ex){docs.push({id,title:String(nd.title||'Untitled'),text:nd.text,updated:incoming||Date.now()});added++}
-    else if(incoming>(ex.updated||0)){ex.title=String(nd.title||ex.title);ex.text=nd.text;ex.updated=incoming;updated++}
+    if(!ex){docs.push({id,title:String(nd.title||'Untitled'),text:nd.text,...(typeof nd.rich==='string'?{rich:richSanitize(nd.rich)}:{}),updated:incoming||Date.now()});added++}
+    else if(incoming>(ex.updated||0)){ex.title=String(nd.title||ex.title);ex.text=nd.text;if(typeof nd.rich==='string')ex.rich=richSanitize(nd.rich);else delete ex.rich;ex.updated=incoming;updated++}
   });
   if(Array.isArray(D.phr))D.phr.forEach(p=>{if(typeof p==='string'&&p&&!phrases.includes(p))phrases.push(p)});
   if(Array.isArray(D.dict))D.dict.forEach(w=>{if(typeof w==='string')userDict.add(w)});
@@ -4860,6 +4867,7 @@ function applyCfg(){
   if(cfg.keys)renderKb();
   /* Writy's keys, not the device's keyboard: always in tablet mode, even while Writy's keys are tucked away */
   ta.setAttribute('inputmode',(cfg.keys||cfg.tablet)?'none':'text');
+  richEl.setAttribute('inputmode',(cfg.keys||cfg.tablet)?'none':'text');
   r.classList.toggle('tablet',!!cfg.tablet);
   $('smTab').textContent=cfg.tablet?'Turn off tablet mode':'Turn on tablet mode';
   if(mmOpenFlag)mmRender();
@@ -4867,7 +4875,7 @@ function applyCfg(){
   $('btnScan').setAttribute('aria-pressed',cfg.scan);
   $('switchbar').hidden=!cfg.scan;
   modeBits();
-  const topMode=cfg.place==='top',treeMode=cfg.place==='tree',dialMode=cfg.place==='dial',menuMode=cfg.place==='menu',mouseMode=cfg.place==='mouse',phrMode=cfg.place==='phrase';
+  const topMode=richOn||cfg.place==='top',treeMode=!richOn&&cfg.place==='tree',dialMode=!richOn&&cfg.place==='dial',menuMode=!richOn&&cfg.place==='menu',mouseMode=!richOn&&cfg.place==='mouse',phrMode=!richOn&&cfg.place==='phrase';
   $('sugbar').hidden=!topMode;
   $('floatsug').hidden=topMode||treeMode||dialMode||menuMode||mouseMode||phrMode;$('floatsug2').hidden=true;
   phr.sig='';phr.key='';pbox.textContent='';pbox.hidden=!phrMode;curPhr=[];
