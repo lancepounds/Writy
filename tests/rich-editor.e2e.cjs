@@ -65,7 +65,7 @@ test('export rich formatting to Word and retain readable plain text fallback',as
   await page.getByRole('button',{name:'Word file (.doc)'}).click();
   const dl=await done,content=await fs.readFile(await dl.path(),'utf8');
   expect(content).toMatch(/<(b|strong)>Bold legal text<\/(b|strong)>/i);
-  await page.getByRole('button',{name:'Close'}).click().catch(()=>{});
+  await page.locator('[data-do=closedlg]').click();
   await page.locator('#btnRich').click();
   await expect(page.locator('#ed')).toHaveValue('Bold legal text');
 });
