@@ -29,11 +29,15 @@ Use non-sensitive test documents:
 7. Disable storage or use a browser profile where IndexedDB is unavailable; verify Writy warns about browser-only storage and can still export work.
 8. Install the PWA on iOS/iPadOS and separately verify offline startup and the browser-specific storage behavior.
 
-## Formatting toolbar
+## Rich-text editing and formatting
 
-Press **Format** next to the document name to show or hide the formatting bar (it opens automatically on taller screens). The bar includes **Bold**, *Italic*, Underline, H1/H2 headings, bulleted lists, numbered lists, block quotes, and **Preview / Edit**. Select text for inline styling, or put the cursor on a line to format its paragraph. Ctrl/Cmd+B, Ctrl/Cmd+I, and Ctrl/Cmd+U also work.
+Click **Rich text** next to the document title to switch to the WYSIWYG editor: the page itself becomes editable, and bold, italics, underlining, headings, lists, fonts, text sizes, and paragraph alignment are visible as you type. Click **Plain text** to return to Writy's original writing editor. Use **Format** to expand or collapse the toolbar. The rich-text choice is remembered on this device.
 
-Writy intentionally keeps a plain-text editor to preserve cursor-based word prediction, accessibility tools, local-first saving, and edit recovery. The formatting is stored as lightweight markup in the text: `**bold**`, `*italic*`, `++underline++`, `# Heading`, `- List item`, and so on. **Preview** shows the rendered formatting without changing the saved text. **Word file (.doc)** exports rendered styling; **Plain text (.txt)** retains the markup so it can be edited again. This is not yet a full WYSIWYG word processor.
+In **Rich text** mode, word suggestions appear in a row at the top, with Tab or a suggestion click inserting the chosen word. Cursor-based word trees, mouse words, and other specialized prediction layouts remain available in the original plain-text editor. The original text entry path is unchanged for eye tracking, switch access, on-screen keys, and other advanced input workflows; please test those on your actual device before relying on rich mode.
+
+**How documents are saved:** Rich HTML and a plain-text copy are saved together in Writy's local IndexedDB document and revision history, the localStorage fallback, and downloaded backup files. Older plain-text documents open in rich mode with their existing markup rendered. Word (.doc) export uses the saved rich formatting when present. For safety, copied material pasted into rich mode is inserted as text, and saved HTML is restricted to supported formatting tags.
+
+**Important:** Editing a rich document in **Plain text** replaces its rich formatting with the plain-text changes. Use **Rich text** to retain styling. This is Word-like direct formatting, not complete Microsoft Word compatibility: there are not yet document tables, page breaks, headers/footers, tracked changes, or full DOCX import/export. The original Markdown-style toolbar, preview, and plain-text documents still work.
 
 ## Code layout
 
