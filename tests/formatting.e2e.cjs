@@ -41,6 +41,16 @@ test('list formatting can be undone and preview does not execute text as HTML',a
   await expect(page.locator('#fmtpreview')).toContainText('<script>window.fmtInjected=true</script>');
   expect(await page.evaluate(()=>window.fmtInjected)).toBeUndefined();
 });
+test('bold and italic apply to multiple selected lines',async({page})=>{
+  await ready(page);
+  const ed=page.locator('#ed');
+  await ed.fill('One line\nSecond line');
+  await ed.evaluate(el=>el.setSelectionRange(0,el.value.length));
+  await page.locator('[data-do=fmtitalic]').click();
+  await expect(ed).toHaveValue('*One line*\n*Second line*');
+  await page.locator('#fmtPreviewBtn').click();
+  await expect(page.locator('#fmtpreview em')).toHaveCount(2);
+});
 test('Word export retains formatting while safely escaping source text',async({page})=>{
   await ready(page);
   const ed=page.locator('#ed');
