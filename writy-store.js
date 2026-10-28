@@ -32,6 +32,7 @@ function connect(){
 function normalize(d){
   if(!d||typeof d.id!=='string'||!d.id||typeof d.text!=='string')return null;
   return{id:d.id,title:String(d.title||'Untitled').slice(0,160),text:d.text,
+    ...(typeof d.rich==='string'&&d.rich.length<=2000000?{rich:d.rich}:{}),
     updated:Number.isFinite(+d.updated)?+d.updated:Date.now()};
 }
 /* Merge old browser-storage documents into the durable store. This is a pure
@@ -52,7 +53,7 @@ function mergeLegacy(primary,legacy,current,gone){
     if(!d)continue;
     const prior=merged.get(d.id);
     if(!prior||d.updated>prior.updated)merged.set(d.id,d);
-    else if(d.updated===prior.updated&&(d.text!==prior.text||d.title!==prior.title)){
+    else if(d.updated===prior.updated&&(d.text!==prior.text||d.title!==prior.title||d.rich!==prior.rich)){
       /* Same edit time, different contents: retain the legacy copy separately. */
       let id;
       do{id='migration-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)}
@@ -94,6 +95,7 @@ function load(){
 function archive(versions,doc,kind){
   if(!doc||doc.deleted||typeof doc.text!=='string')return;
   versions.add({docId:doc.id,title:doc.title||'Untitled',text:doc.text,
+    ...(typeof doc.rich==='string'?{rich:doc.rich}:{}),
     updated:doc.updated,archivedAt:Date.now(),kind:kind||'previous'});
   /* Bound recovery history per document, without deleting the newest entry. */
   const ix=versions.index('docId'),keys=[];
@@ -137,11 +139,11 @@ function write(documents,deleted,current){
             const old=get.result;
             if(!old||d.updated>old.updated){
               let lastRevisionAt=old&&old.lastRevisionAt||0;
-              if(old&&!old.deleted&&(old.text!==d.text||old.title!==d.title)&&now-lastRevisionAt>=30000){
+              if(old&&!old.deleted&&(old.text!==d.text||old.title!==d.title||old.rich!==d.rich)&&now-lastRevisionAt>=30000){
                 archive(vs,old,'previous');lastRevisionAt=now;
               }
               ds.put({...d,lastRevisionAt});
-            }else if(!old.deleted&&(old.text!==d.text||old.title!==d.title)){
+            }else if(!old.deleted&&(old.text!==d.text||old.title!==d.title||old.rich!==d.rich)){
               /* Keep the incoming version if another window saved a newer one. */
               archive(vs,d,'conflict');conflicts++;
             }
