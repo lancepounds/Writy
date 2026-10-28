@@ -84,3 +84,20 @@ test('absence of IndexedDB falls back without false success',async()=>{
  assert.equal((await api.write([doc('a','text',10)],{},'a')).available,false);
  assert.equal(await api.pin(doc('a','text',10)),false);
 });
+
+test('rich formatting survives local-first save, migration and revision history',async()=>{
+ const clock={now:100000},{api}=make({clock});
+ const first={...doc('a','Important draft',10),rich:'<p><strong>Important</strong> draft</p>'};
+ assert.equal((await api.write([first],{},'a')).available,true);
+ assert.equal((await api.load()).documents[0].rich,first.rich);
+ const migrated=api.mergeLegacy({documents:[first],deleted:{},current:'a'},[first],'a',{});
+ assert.equal(migrated.documents.length,1);
+ assert.equal(migrated.documents[0].rich,first.rich);
+ clock.now+=32000;
+ const second={...doc('a','Revised',20),rich:'<h1>Revised</h1>'};
+ await api.write([second],{},'a');
+ const old=(await api.versions('a')).find(v=>v.text==='Important draft');
+ assert.equal(old.rich,first.rich);
+ await api.pin(second);
+ assert((await api.versions('a')).some(v=>v.kind==='manual'&&v.rich===second.rich));
+});
