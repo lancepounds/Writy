@@ -762,6 +762,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <span class="tsep"></span>
       <button class="tbtn opt tbdd wlenwheel" id="btnWords" data-do="wordsmenu" aria-haspopup="menu" aria-expanded="false" aria-controls="wordsmenu" title="Choose how the suggested words appear. Turn the mouse wheel here for shorter or longer words."><span class="tbddico" aria-hidden="true"></span><span id="btnWordsLab">Words: Tree</span><span class="tbddlen" id="btnWordsLen" hidden></span><span class="tbddarr" aria-hidden="true"></span></button>
       <span class="tsep"></span>
+      <button class="tbtn opt" id="btnVocab" data-do="vocab" aria-pressed="false" title="Temporary topic vocabulary">Vocab</button>
       <button class="tbtn opt" data-do="smaller" aria-label="Smaller text">A&minus;</button>
       <button class="tbtn opt" data-do="bigger" aria-label="Bigger text">A+</button>
       <button class="tbtn opt" id="btnDark" data-do="darkmode" aria-pressed="false" aria-label="Dark mode">Dark</button>
@@ -1079,12 +1080,69 @@ const WLENTXT={'-3':'Up to 3 letters','-2':'Up to 4 letters','-1':'Up to 6 lette
 function wlenV(){const v=Math.round(+cfg.wlen||0);return Math.max(-3,Math.min(3,v))}
 function wlenRule(){return WLEN[wlenV()]||null}
 const wlenOf=w=>w.replace(/[^a-z]/g,'').length;
+
+/* Temporary vocabulary belongs to this tab, not the learned dictionary. */
+const TV_PRESETS={
+  Legal:'affidavit appeal claimant counsel court damages defendant deposition discovery evidence hearing jurisdiction liability motion plaintiff settlement statute testimony tribunal verdict',
+  Email:'agenda appointment attachment availability colleague confirmation deadline feedback correspondence invoice meeting proposal recipient regards reminder request response review schedule update',
+  Technology:'accessibility application browser configuration database deployment developer interface keyboard network offline password permissions privacy repository server software storage update version',
+  Travel:'accommodation airport arrival baggage booking departure destination flight hotel itinerary luggage passport reservation station terminal ticket timetable transfer transport visa'
+};
+function tvParse(text){
+  const out=new Map();
+  for(const word of String(text).replace(/’/g,"'").match(/[A-Za-z]+(?:'[A-Za-z]+)*/g)||[]){
+    if(word.length>40)throw Error('Keep each word to 40 letters or fewer.');
+    const key=word.toLowerCase();if(!out.has(key))out.set(key,word);
+    if(out.size>120)throw Error('Use up to 120 different words at a time.');
+  }
+  return out;
+}
+let tv={active:false,topic:'Custom',words:new Map()};
+try{
+  const saved=JSON.parse(sessionStorage.getItem('sw.tempVocab')||'null');
+  if(saved&&typeof saved.text==='string'&&saved.text.length<=6000){
+    const parsed=tvParse(saved.text);
+    tv={active:!!saved.active&&!!parsed.size,topic:Object.hasOwn(TV_PRESETS,saved.topic)?saved.topic:'Custom',words:parsed};
+  }
+}catch{}
+function tvSync(){
+  const button=$('btnVocab');
+  button.textContent=tv.active?'Vocab: '+tv.topic:'Vocab';
+  button.setAttribute('aria-label','Temporary vocabulary'+(tv.active?': '+tv.topic+', '+tv.words.size+' words active':''));
+  button.setAttribute('aria-pressed',String(tv.active));
+}
+function tvCount(){
+  try{$('tvCount').textContent=tvParse($('tvWords').value).size+' / 120 words';$('tvError').textContent=''}
+  catch(e){$('tvError').textContent=e.message}
+}
+function tvCommit(off){
+  if(!off){
+    try{
+      const parsed=tvParse($('tvWords').value);
+      if(!parsed.size)throw Error('Enter at least one word.');
+      tv={active:true,topic:$('tvTopic').value,words:parsed};
+    }catch(e){$('tvError').textContent=e.message;return}
+  }else tv.active=false;
+  try{sessionStorage.setItem('sw.tempVocab',JSON.stringify({active:tv.active,topic:tv.topic,text:[...tv.words.values()].join('\n')}))}catch{}
+  tvSync();closeDlg();tree.sig='';tree.key='';refresh();
+  msg(tv.active?'Temporary vocabulary is on: '+tv.topic+'.':'Temporary vocabulary is off.');
+}
+document.addEventListener('change',e=>{
+  if(e.target.id!=='tvTopic')return;
+  if(Object.hasOwn(TV_PRESETS,e.target.value))$('tvWords').value=TV_PRESETS[e.target.value].split(' ').join('\n');
+  tvCount();
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='tvWords'){ $('tvTopic').value='Custom';tvCount(); }
+});
+
 function predict(prefix,ctx,n,sc){
   const{p1,k2,score}=lmPrep(ctx),lim=sc?null:wlenRule();
   const cand=new Map();
-  const add=(w,s)=>{if(HIDE.has(w))return;const o=cand.get(w);if(o===undefined||s>o)cand.set(w,s)};
+  const add=(w,s)=>{if(HIDE.has(w))return;if(tv.active&&tv.words.has(w))s+=lp?4:1.5;const o=cand.get(w);if(o===undefined||s>o)cand.set(w,s)};
   const lp=prefix.toLowerCase().replace(/’/g,"'"),pools=[BG[p1],U.b[p1],k2&&TG[k2],k2&&U.t[k2]];
   if(lp){
+    if(tv.active)for(const w of tv.words.keys())if(w.startsWith(lp))add(w,score(w));
     const maxd=lp.length>=5?2:(lp.length>=3?1:0);
     for(let i=0;i<words.length;i++){
       const w=words[i];
@@ -1115,7 +1173,7 @@ function predict(prefix,ctx,n,sc){
   return sc?e:e.map(x=>x[0]);
 }
 function fmt(w,prefix,atStart,p1,pUp){
-  let d=U.k[w]||PROPER.get(w)||w;
+  let d=(tv.active&&tv.words.get(w))||U.k[w]||PROPER.get(w)||w;
   if(d===w){
     const cc=p1&&p1!=='<s>'?U.cc[p1+' '+w]||0:0;
     if((cc>0&&pUp)||(cc>=0&&(U.c[w]||0)>=(everyday(w)?3:1)))d=w.charAt(0).toUpperCase()+w.slice(1);
@@ -4045,7 +4103,7 @@ function mmRender(){
   const ck=on=>' role="menuitemcheckbox" aria-checked="'+(!!on)+'"';
   const it=(d,lab,extra)=>'<button class="wmitem" data-do="'+d+'"'+(extra||' role="menuitem"')+'><span class="wmdot" aria-hidden="true"></span><span class="wmtx"><b>'+lab+'</b></span></button>';
   $('moremenu').innerHTML=
-    it('new','New document')+it('phrases','Saved phrases')+it('backup','Backup and export')+it('readability','Readability summary')+
+    it('new','New document')+it('vocab','Temporary vocabulary'+(tv.active?' — '+tv.topic:''))+it('phrases','Saved phrases')+it('backup','Backup and export')+it('readability','Readability summary')+
     '<hr role="separator">'+
     it('keys','Writy’s keys',ck(cfg.keys))+it('check','Spelling and grammar check',ck(cfg.check))+it('scan','Switch scanning',ck(cfg.scan))+it('gaze','Eye gaze',ck(cfg.gaze))+it('darkmode','Dark mode',ck(isDark()))+
     '<hr role="separator">'+
@@ -4183,7 +4241,16 @@ function setRow(label,name,opts){return `<div class="setrow"><div class="setlabe
 const ONOFF=[[true,'On'],[false,'Off']];
 function renderDlg(){
   const b=$('dlgBody');let title='';
-  if(dlgKind==='docs'){
+  if(dlgKind==='vocab'){
+    title='Temporary vocabulary';
+    b.innerHTML='<p class="dlgnote">Give topic words and names extra priority in predictions. This list stays in this tab through reloads. Turn it off whenever you finish. Words you actually write can still be learned normally.</p>'+
+      '<label for="tvTopic">Starter list</label><select id="tvTopic" style="display:block;width:100%;margin:8px 0 16px;padding:10px;font:inherit">'+
+      ['Custom',...Object.keys(TV_PRESETS)].map(x=>'<option value="'+x+'">'+(x==='Email'?'Work / email':x)+'</option>').join('')+'</select>'+
+      '<label for="tvWords">Words or names (separate with spaces, commas, or new lines)</label><textarea id="tvWords" maxlength="6000" rows="8" autocapitalize="off" spellcheck="false" style="display:block;box-sizing:border-box;width:100%;margin:8px 0;padding:10px;font:inherit"></textarea>'+
+      '<p id="tvCount" class="dlgnote" aria-live="polite"></p><p id="tvError" role="alert"></p>'+
+      '<div class="dlgrow"><button class="dlgbtn" data-do="vocabapply">Use for this tab</button><button class="dlgbtn" data-do="vocaboff">Turn off</button></div>';
+    $('tvTopic').value=tv.topic;$('tvWords').value=[...tv.words.values()].join('\n');tvCount();
+  }else if(dlgKind==='docs'){
     title='Documents';
     b.innerHTML=`<div class="dlgrow"><button class="dlgbtn" data-do="new">New document</button></div><div class="nplist">${docsListHTML()}</div>`;
   }else if(dlgKind==='phrases'){
@@ -4904,7 +4971,7 @@ function setCols(){
 mqNarrow.addEventListener&&mqNarrow.addEventListener('change',()=>{setCols();refresh()});
 function applyCfg(){
   const r=document.documentElement;
-  syncHide();ksShow();rgCalc();
+  syncHide();ksShow();rgCalc();tvSync();
   if(cfg.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',cfg.theme);
   r.style.setProperty('--edsize',cfg.size+'px');
   if(!richOn){
@@ -4990,6 +5057,9 @@ document.querySelector('.titlebar').addEventListener('dblclick',e=>{
 let armed=null;
 function act(what,arg,el){
   switch(what){
+    case'vocab':openDlg('vocab');break;
+    case'vocabapply':tvCommit(false);break;
+    case'vocaboff':tvCommit(true);break;
     case'sug':{const w=curSug[+arg];if(w)accept(w);break}
     case'psug':{if(Date.now()-(phr.took||0)<350)break;phr.took=Date.now();const q=String(arg).split('.');takePhrase(+q[0],+q[1]);break}
     case'tsug':{if(Date.now()-(tree.took||0)<350)break;tree.took=Date.now();const p=String(arg).split('.');takeTree(+p[0],p.length>1?+p[1]:-1);break}
