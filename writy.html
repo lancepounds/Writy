@@ -1825,18 +1825,21 @@ function refresh(){
 function queueRefresh(){if(refreshQueued)return;refreshQueued=true;requestAnimationFrame(()=>{refreshQueued=false;refresh()})}
 function updateUndo(){$('btnUndo').disabled=!richOn&&histState.i<=0;$('btnRedo').disabled=!richOn&&histState.i>=hist.length-1}
 function keepCaretVisible(){if(cfg.typewriter){twCenter();return}if(ta.selectionStart>=ta.value.length-1)ta.scrollTop=ta.scrollHeight}
-function accept(word,quiet,said){
-  if(richOn){richAccept(word,quiet);return}
+function accept(word,followUp){
+  const toks=followUp?[word,followUp]:[word],text=toks.join(' ');
+  if(richOn){richAccept(text);return}
   const st=curState(),v=ta.value;
   let lead='';
   if(!st.prefix&&!st.replace&&st.s>0&&!/[\s(\["“'-]/.test(v[st.s-1]))lead=' ';
   const trail=(st.e>=v.length||/[A-Za-z0-9]/.test(v[st.e]))?' ':'';
-  ta.setRangeText(lead+word+trail,st.s,st.e,'end');
-  tally(quiet?0:1,ta.value.length-v.length);
-  autoSpaceIdx=trail?st.s+lead.length+word.length:-1;
-  learnWord(word,st.ctx,2);
-  if(quiet)return;
-  if(cfg.speakWords)speakNow(said?said+' '+word:word);
+  /* Insert the pair in one edit: a second accept before existing whitespace
+     would treat the first word as a prefix and replace it. */
+  ta.setRangeText(lead+text+trail,st.s,st.e,'end');
+  tally(1,ta.value.length-v.length);
+  autoSpaceIdx=trail?st.s+lead.length+text.length:-1;
+  let ctx=st.ctx.slice();
+  toks.forEach(w=>{learnWord(w,ctx,2);ctx=ctx.concat(w.toLowerCase().replace(/’/g,"'")).slice(-2)});
+  if(cfg.speakWords)speakNow(text);
   pushHist(false);keepCaretVisible();refresh();schedSave();
   if(fine||!cfg.keys)ta.focus({preventScroll:true});
 }
@@ -2104,7 +2107,7 @@ function takeTree(i,j){
     if(node&&j<0)node.parentNode.querySelectorAll('.t2').forEach(b=>{if(!b.hidden)from.kids[b.querySelector('.tw').textContent.toLowerCase()]=b.getBoundingClientRect()});
   }
   tree.from=from;tree.grow=1;
-  if(k){accept(w,true);accept(k,false,w)}else accept(w);
+  accept(w,k);
 }
 function pickMoveTree(key){
   const N=tree.N;if(!N)return;
