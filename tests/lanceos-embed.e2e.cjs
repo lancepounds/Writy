@@ -30,13 +30,15 @@ test('Writy inside Lance.os uses one window frame and retains its writing contro
   await expect(app.locator('#stSaved')).toHaveText('Saved on this device',{timeout:15000});
 });
 
-test('opening Writy directly retains its own XP window and Start taskbar',async({page})=>{
+test('opening Writy directly has no Start menu or desktop taskbar',async({page})=>{
   await page.goto('/writy.html');
   await expect(page.locator('#ed')).toBeEnabled();
   await expect(page.locator('html')).not.toHaveClass(/lanceos-embedded/);
   await expect(page.locator('.titlebar')).toBeVisible();
-  await expect(page.locator('.taskbar')).toBeVisible();
-  await expect(page.locator('#orb')).toBeVisible();
+  await expect(page.locator('.taskbar')).toBeHidden();
+  await expect(page.locator('#startmenu')).toBeHidden();
+  await expect(page.locator('#btnMore')).toBeVisible();
+  await expect(page.locator('#orb')).toBeHidden();
   await expect(page.locator('#embeddedMenu')).toHaveCount(0);
   const windowBorder=await page.locator('.window').evaluate(el=>getComputedStyle(el).borderLeftWidth);
   expect(windowBorder).not.toBe('0px');
@@ -47,5 +49,29 @@ test('embedding query in standalone tab never removes navigation',async({page})=
   await expect(page.locator('#ed')).toBeEnabled();
   await expect(page.locator('html')).not.toHaveClass(/lanceos-embedded/);
   await expect(page.locator('.titlebar')).toBeVisible();
-  await expect(page.locator('.taskbar')).toBeVisible();
+  await expect(page.locator('.taskbar')).toBeHidden();
+  await expect(page.locator('#startmenu')).toBeHidden();
+  await expect(page.locator('#btnMore')).toBeVisible();
+});
+
+test('standalone More keeps help and tablet controls accessible without Start',async({page})=>{
+  await page.setViewportSize({width:820,height:1180});
+  await page.goto('/writy.html');
+  await expect(page.locator('#ed')).toBeEnabled();
+  await page.locator('#btnMore').click();
+  await expect(page.locator('#moremenu [data-do=help]')).toBeVisible();
+  await expect(page.locator('#moremenu [data-do=fullscreen]')).toBeVisible();
+  await page.locator('#moremenu [data-do=help]').click();
+  await expect(page.locator('#overlay')).toBeVisible();
+  await page.locator('[data-do=closedlg]').click();
+  await page.locator('#btnMore').click();
+  await page.locator('#moremenu [data-do=tablet]').click();
+  await expect(page.locator('html')).toHaveClass(/tablet/);
+  await expect(page.locator('#btnMore')).toBeVisible();
+  await expect(page.locator('.taskbar')).toBeHidden();
+  await page.locator('#btnMore').click();
+  await expect(page.locator('#moremenu [data-do=tablet]')).toHaveText('Turn off tablet mode');
+  await page.locator('#moremenu [data-do=tablet]').click();
+  await expect(page.locator('html')).not.toHaveClass(/tablet/);
+  await expect(page.locator('#orb')).toBeHidden();
 });

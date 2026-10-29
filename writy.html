@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
-/* A compact editor surface only inside Lance.os; direct Writy keeps its own chrome. */
+/* Lance.os supplies the outer window; standalone Writy has its own title bar. */
 if (window.top !== window.self && new URLSearchParams(location.search).get('embed') === 'lanceos') {
   document.documentElement.classList.add('lanceos-embedded');
 }
@@ -438,6 +438,9 @@ html.gaze .cap.close{width:40px;height:40px}
 #stMsg{flex:1;min-width:0}
 @media (max-width:640px){#stMode{display:none}}
 
+/* Retired desktop shell: keep legacy DOM references inert for compatibility. */
+.taskbar,#startmenu{display:none !important}
+#moremenu{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
 /* taskbar */
 .taskbar{position:relative;flex:0 0 auto;display:flex;align-items:stretch;gap:6px;height:38px;
   background:linear-gradient(180deg,#1F2F86 0%,#3165C4 3%,#3682E5 6%,#4490E6 10%,#3883E5 12%,#2B71E0 15%,#2663DA 18%,#235BD6 20%,#2258D5 23%,#2157D6 38%,#245DDB 54%,#2562DF 86%,#245FDC 89%,#2158D4 92%,#1D4EC0 95%,#1941A5 98%)}
@@ -764,7 +767,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="tbtn opt" id="btnDark" data-do="darkmode" aria-pressed="false" aria-label="Dark mode">Dark</button>
       <span class="tsep"></span>
       <button class="tbtn" data-do="settings">Settings</button>
-      <button class="tbtn tbdd tbmore tabonly" id="btnMore" data-do="moremenu" aria-haspopup="menu" aria-expanded="false" aria-controls="moremenu" title="More buttons"><span>More</span><span class="tbddarr" aria-hidden="true"></span></button>
+      <button class="tbtn tbdd tbmore" id="btnMore" data-do="moremenu" aria-haspopup="menu" aria-expanded="false" aria-controls="moremenu" title="More buttons"><span>More</span><span class="tbddarr" aria-hidden="true"></span></button>
       <span class="tsep tbksep"></span><div class="tbks ksize" id="tbKs" role="group" aria-label="Keyboard size"></div>
       <button class="tbtn gzonly" id="gazeCal" data-do="gazecal" hidden>Recalibrate</button>
       <button class="tbtn gzonly" id="gazePause" data-do="gazepause" aria-pressed="false" aria-label="Pause eye control">Pause gaze</button>
@@ -818,7 +821,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <button class="stks" id="stWords" data-do="readability" title="Readability summary">0 words</button><span id="stSaved" role="status" aria-live="polite">Loading documents...</span><button class="stks" id="stKs" data-do="ksinfo" hidden></button><span id="stMsg" aria-live="polite"></span><span id="stMode"></span>
     </div>
   </div>
-  <div class="taskbar">
+  <div class="taskbar" hidden inert aria-hidden="true">
     <button class="orb" id="orb" data-do="start" aria-label="Start menu" aria-expanded="false"></button>
     <div class="startmenu" id="startmenu" hidden>
       <div class="smhead">Writy</div>
@@ -4048,7 +4051,11 @@ function mmRender(){
     '<hr role="separator">'+
     '<div class="wmlen" role="group" aria-label="Text size"><div class="wmlenhd"><b>Text size</b></div><div class="wmlenrow"><button class="wmitem wmlenbtn" role="menuitem" data-do="smaller">Smaller</button><button class="wmitem wmlenbtn" role="menuitem" data-do="bigger">Bigger</button></div></div>'+
     '<div class="wmlen" role="group" aria-label="Keyboard size"><div class="wmlenhd"><b>Keyboard size</b></div><div class="ksize mmks">'+ksizeHTML(false)+'</div></div>'+
-    '<hr role="separator">'+it('tablet','Turn off tablet mode');
+    '<hr role="separator">'+it('typewriter','Centered typing',ck(cfg.typewriter))+
+    it('tablet',cfg.tablet?'Turn off tablet mode':'Turn on tablet mode')+
+    it('fullscreen',document.fullscreenElement?'Exit full screen':'Full screen')+
+    (pwaOK()&&!standalone()?it('install','Install Writy (works offline)'):'')+
+    it('help','Help and shortcuts');
 }
 function mmOpenMenu(focus){
   if(mmOpenFlag)return;
@@ -4111,7 +4118,7 @@ function tabletTip(){
   try{
     if(cfg.tablet||!matchMedia('(pointer: coarse)').matches||innerWidth<641||S.get('sw.tabtip',0))return;
     S.set('sw.tabtip',1);
-    tipLater('On a tablet? Turn on Tablet mode in the Start menu for bigger buttons and Writy’s own keys.',10000);
+    tipLater('On a tablet? Turn on Tablet mode under More for bigger buttons and Writy’s own keys.',10000);
   }catch(e){}
 }
 
@@ -4324,23 +4331,23 @@ ${setRow('The Email button opens','mailer',[['gmail','Gmail'],['app','My email p
 <p><b>Drop-down menu</b> shows the words as a menu under your cursor instead, like the menus in Windows. Each word has a ▸ arrow: point at the word (or tap the arrow) to open a submenu of the words that usually come after it. Click a word to type it, or a word in the submenu to type both. The menu follows your cursor and drops down again after each word. With the keyboard, Up and Down move through the menu, Right opens the submenu, Left goes back and Enter types the word.</p>
 <p><b>Whole phrases</b> offers endings for the sentence you are writing, like “your time.” after “Thank you for”. They come from sentences you have written before in Writy, your saved phrases, common sentences, and what Writy has learned about how you write, and they change as you type. Choose the last word you want: pointing at a word lights up everything that will be typed, so you can take just part of a phrase, and the end of the row takes all of it. Single words sit underneath for when no phrase fits. With the keyboard, Up or Down starts, Left and Right choose how much of the phrase, and Enter takes it.</p>
 <p><b>Mouse words</b> lets you write with the mouse alone. Rest the mouse on the page and the next words fly in and circle around it. Move onto a word to type it, and the next words fly in around wherever the mouse is. Each word is in its own direction, so you can go straight to it without touching the others, and a word that lands under the mouse never types itself. The tools are along the bottom: a period and a comma, <b>Undo</b> (straight down) takes back the last word, and <b>Letters</b> shows the alphabet in a circle with the likely next letters in gold. Pick a letter and the words that start with it fly in. If the mouse slips off the words, or even out of the window, they wait where they are (dimmed) until you come back. Rest the mouse somewhere else on the page for a second and the same words fly over to it. Click in your text, scroll, or press Esc to send them away; they come back when the mouse rests again. The middle of the circle shows the end of what you have written. If words get typed when you only meant to pass over them, choose “Rest on it” in Settings.</p>
-<p><b>Centered typing</b> keeps the line you are typing on in one place, in the middle of the page, and moves the text up as you write. If the words need more room, the line sits a little higher. If you scroll up to read, the page stays where you put it until you type or move the cursor. Turn it off in the Start menu or in Settings.</p>
+<p><b>Centered typing</b> keeps the line you are typing on in one place, in the middle of the page, and moves the text up as you write. If the words need more room, the line sits a little higher. If you scroll up to read, the page stays where you put it until you type or move the cursor. Turn it off under More or in Settings.</p>
 <p>The older layouts are in the <b>Words</b> menu (and Settings) too: words around your cursor, one box under it, or a bar at the top. When you have not started a word, it offers the next word instead.</p>
 <ul>
 <li><kbd>Tab</kbd> takes the first suggestion.</li>
 <li><kbd>Up</kbd> or <kbd>Down</kbd> starts picking a word. Then the arrow keys move between the words (in the tree, Left and Right move between branches and Up and Down move along a branch; on the dial, Left and Right go around it, Down moves out to the outer ring and Up moves back in), <kbd>Enter</kbd> takes the highlighted one and <kbd>Esc</kbd> cancels. Typing also cancels. <kbd>Ctrl</kbd> + <kbd>Up</kbd> or <kbd>Down</kbd> moves the cursor between lines. You can turn this off in Settings.</li>
 <li><kbd>Alt</kbd> + <kbd>1</kbd> to <kbd>6</kbd> takes that suggestion.</li>
-<li><b>Install Writy</b> (when you use it from your website): choose Install Writy in the Start menu. On an iPad, tap Share, then Add to Home Screen; on a Mac with Safari, choose File, then Add to Dock. Installed, it opens from its own icon and works without internet. Installed from Chrome or Edge it has the same documents; on an iPad, iPhone, or a Mac with Safari it keeps its own, so use <b>Backup</b> to bring yours along.</li>
-<li><b>Tablet mode</b> (turn it on in the Start menu or Settings): bigger buttons for touch, and Writy’s own keys instead of the tablet’s keyboard, so nothing covers your page. The toolbar keeps the main buttons; the rest are under <b>More</b>. <b>Hide</b> on the keys tucks them away; tap the page or <b>Show keys</b> to bring them back. On any touch screen, press and hold a suggested word to stop Writy suggesting it.</li>
+<li><b>Install Writy</b> (when you use it from your website): choose Install Writy under More. On an iPad, tap Share, then Add to Home Screen; on a Mac with Safari, choose File, then Add to Dock. Installed, it opens from its own icon and works without internet. Installed from Chrome or Edge it has the same documents; on an iPad, iPhone, or a Mac with Safari it keeps its own, so use <b>Backup</b> to bring yours along.</li>
+<li><b>Tablet mode</b> (turn it on under More or Settings): bigger buttons for touch, and Writy’s own keys instead of the tablet’s keyboard, so nothing covers your page. The toolbar keeps the main buttons; the rest are under <b>More</b>. <b>Hide</b> on the keys tucks them away; tap the page or <b>Show keys</b> to bring them back. On any touch screen, press and hold a suggested word to stop Writy suggesting it.</li>
 <li><b>Speak</b> (or <kbd>Ctrl</kbd> + <kbd>Enter</kbd>) reads your writing back to you and marks each word as it reads, so you can check it before you send it. Some voices can only mark the sentence. It reads the text you selected, or starts at the sentence you clicked in, or reads the whole page. Press <b>Stop</b>, <kbd>Esc</kbd> or any key to stop. Choose the voice and speed in Settings, under Speech.</li>
 <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> undoes, or use the green arrows.</li>
-<li>Shortcuts: type <b>tyft</b> then a space and it becomes “Thank you for your time.” Make your own with Edit phrases and shortcuts, under your phrases on the left or Saved phrases in the Start menu.</li>
+<li>Shortcuts: type <b>tyft</b> then a space and it becomes “Thank you for your time.” Make your own with Edit phrases and shortcuts, under your phrases on the left or Saved phrases under More.</li>
 <li>With <b>Keys</b> on, <b>Keyboard size</b> at the right end of the toolbar (or under the keys on a phone) makes Writy’s on-screen keys bigger or smaller with its <b>&minus;</b>, slider and <b>+</b>. Tap &minus; or +, slide it, or turn the mouse wheel over it.</li>
 <li><b>Word length:</b> turn the mouse wheel over the <b>Words</b> button, up for longer words and down for shorter ones, or use Shorter and Longer in the Words menu. Shorter suggests only short words (up to 3, 4 or 6 letters); Longer suggests only longer words (4, 5 or 7 letters and up), which saves the most typing. While it is on, the Words button shows a small badge, like 5+. If no word of that length makes sense where you are, you see the usual words.</li>
 <li>The <b>Dark</b> button switches between dark and light colors. Settings can also match your device.</li>
 <li><b>Email</b> opens a new email in Gmail with your page, or just the text you selected. Add who it goes to and send. If the page starts with a line like <i>Subject: Lunch on Friday</i> (or <i>To: name@example.com</i>), Writy fills those in for you. To use Outlook or another email program, change <b>The Email button opens</b> in Settings.</li>
 <li><b>Don’t suggest a word:</b> right-click a suggested word and choose Don’t suggest (or, while picking a word with the arrow keys, press <kbd>Shift</kbd> + <kbd>F10</kbd>). It is good for typos Writy learned. Settings lists your hidden words, where you can bring them back or type one to hide.</li>
-<li><b>Readability:</b> the bar at the bottom shows your word count and reading level, like <b>245 words · grade 7</b>. Click it (or choose Readability summary in the Start menu) to see how easy your writing is to read, with any long sentences, wordy phrases that have simpler words, and possible passive voice. Choose any of them to go to it. Select some text first to check just that part.</li>
+<li><b>Readability:</b> the bar at the bottom shows your word count and reading level, like <b>245 words · grade 7</b>. Click it (or choose Readability summary under More) to see how easy your writing is to read, with any long sentences, wordy phrases that have simpler words, and possible passive voice. Choose any of them to go to it. Select some text first to check just that part.</li>
 <li>The bar at the bottom shows how much typing Writy saved you today, like <b>38% less typing</b>: the characters it put on the page compared with the keys you pressed and the words you picked. Click it for the numbers.</li>
 <li>The <b>Phrases</b> button shows or hides the panel on the left with your phrases and documents, so the page can be wider. Tap a phrase to type it. <b>Docs</b> still opens your documents when the panel is hidden.</li>
 <li>Two spaces after a word add a period. Common typos like “teh” are fixed as you type; Undo puts them back.</li>
@@ -5072,15 +5079,7 @@ function act(what,arg,el){
     case'settings':openDlg('settings');break;
     case'help':openDlg('help');break;
     case'closedlg':closeDlg();break;
-    case'start':{
-      // Lance.os supplies the Start menu for embedded Writy.
-      if(document.documentElement.classList.contains('lanceos-embedded')){closeStart();break}
-      startOpen=!startOpen;
-      if(startOpen){mwHide(0);wmClose();mmClose();smClose()}
-      $('startmenu').hidden=!startOpen;
-      $('orb').setAttribute('aria-expanded',String(startOpen));
-      break;
-    }
+    case'start':closeStart();break; // The retired desktop Start menu cannot reopen.
     case'speak':doSpeak();break;
     case'voicenext':{const L=voiceOrder(),i=L.indexOf(cfg.voice||'');setVoice(L[(i+1)%L.length]);break}
     case'voicetry':speakNow(SAMPLE);break;
