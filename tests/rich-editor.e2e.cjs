@@ -84,3 +84,32 @@ test('unsafe formatted HTML from old backup is not executed',async({page})=>{
   expect(await page.evaluate(()=>window.richInjected)).toBeUndefined();
   await expect(page.locator('#richEditor img,#richEditor script')).toHaveCount(0);
 });
+
+test('exact point sizes format selected text and survive saving and reload',async({page})=>{
+  await ready(page);
+  const rich=page.locator('#richEditor'),size=page.locator('#fmtSize');
+  await expect(size.locator('option')).toHaveText(['Size (pt)','24 pt','18 pt','12 pt','10 pt']);
+  await rich.fill('Size check');
+  await rich.evaluate(el=>{
+    const r=document.createRange(),sel=window.getSelection();
+    r.selectNodeContents(el);sel.removeAllRanges();sel.addRange(r);
+  });
+  await size.selectOption('18');
+  await expect(rich.locator('span[style*="font-size: 18pt"]')).toContainText('Size check');
+  await expect(page.locator('#stSaved')).toHaveText('Saved on this device',{timeout:15000});
+  const data=await page.evaluate(()=>window.WrityStore.load());
+  const current=data.documents.find(d=>d.id===data.current);
+  expect(current.rich).toMatch(/font-size:18pt/);
+  await page.reload();
+  await expect(page.locator('#richEditor span[style*="font-size: 18pt"]')).toContainText('Size check');
+});
+test('point-size menu changes plain text size and remembers it',async({page})=>{
+  await page.goto('/writy.html');
+  await page.locator('#btnFormat').click();
+  await page.locator('#fmtSize').selectOption('12');
+  await expect.poll(()=>page.locator('#ed').evaluate(el=>getComputedStyle(el).fontSize)).toBe('16px');
+  await page.reload();
+  await page.locator('#btnFormat').click();
+  await expect(page.locator('#fmtSize')).toHaveValue('12');
+  await expect.poll(()=>page.locator('#ed').evaluate(el=>getComputedStyle(el).fontSize)).toBe('16px');
+});
