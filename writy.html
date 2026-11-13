@@ -727,6 +727,18 @@ html.lanceos-embedded .navbar{padding:4px 10px}
 html.lanceos-embedded .address::before,html.lanceos-embedded .address .crumb,html.lanceos-embedded .address .sep{display:none}
 /* Lance.os owns the only Start menu in embedded mode. */
 html.lanceos-embedded #startmenu{display:none !important}
+
+.legal-sidebar{flex:0 0 290px;min-width:0;overflow:auto;padding:12px;box-sizing:border-box;border-right:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.legal-sidebar:not([open]){flex-basis:52px;padding:6px}
+.legal-sidebar:not([open])>summary{writing-mode:vertical-rl;padding:8px}
+.legal-sidebar>summary{font-weight:700;cursor:pointer;min-height:44px}
+.legal-sidebar button{min-height:44px;margin:4px 0;max-width:100%;white-space:normal}
+.legal-sidebar input,.legal-sidebar textarea{max-width:100%;background:var(--paper);color:var(--ink)}
+.legal-sidebar p,.legal-sidebar label{overflow-wrap:anywhere}
+.legal-card{border:0;border-top:1px solid var(--line);padding:12px 0;margin-top:12px;min-width:0}
+.legal-card h3{font-size:1em;margin:0 0 12px}
+.legal-card label{margin-bottom:8px}
+@media(max-width:700px){.frame{position:relative}.legal-sidebar[open]{position:absolute;left:0;top:0;bottom:0;width:min(320px,85%);z-index:40;box-shadow:4px 0 12px #0003}}
 </style>
 </head>
 <body>
@@ -796,6 +808,7 @@ html.lanceos-embedded #startmenu{display:none !important}
       <span class="fmthelp">Select text to style it, or put the cursor on a line.</span>
     </div>
     <div class="frame">
+<details id="legalPanel" class="legal-sidebar" open><summary style="cursor:pointer;min-height:44px">Legal research</summary><p>Authorities are saved on this device, separately from document backups. Select draft text before linking a passage.</p><button type="button" id="legalAdd">Add authority</button> <button type="button" id="legalReview">Review draft</button> <button type="button" id="legalBackup">Download research backup</button> <label>Restore research <input type="file" id="legalRestore" accept="application/json"></label><div id="legalCards"></div><div id="legalResults" role="status"></div></details>
       <aside class="navpane" aria-label="Documents and phrases">
         <div class="nphead">Documents</div>
         <div class="nplist" id="npDocs"></div>
@@ -808,7 +821,7 @@ html.lanceos-embedded #startmenu{display:none !important}
           <div class="sughead"><span id="sugHint">Next word</span><span class="tabhint">Tab takes the first word</span></div>
           <div class="sugrow" id="sugrow"></div>
         </section>
-        <details id="legalPanel" style="padding:8px 16px;max-height:45vh;overflow:auto;border-bottom:1px solid var(--line)"><summary style="cursor:pointer;min-height:44px">Legal research and draft review</summary><p>Authorities are saved on this device, separately from document backups. Select draft text before linking a passage.</p><button type="button" id="legalAdd">Add authority</button> <button type="button" id="legalReview">Review draft</button> <button type="button" id="legalBackup">Download research backup</button> <label>Restore research <input type="file" id="legalRestore" accept="application/json"></label><div id="legalCards"></div><div id="legalResults" role="status"></div></details><section class="editor">
+        <section class="editor">
           <div class="edscroll" aria-label="Scroll the text"><button class="act" data-do="edup" aria-label="Scroll the text up">&#9650;</button><button class="act" data-do="eddown" aria-label="Scroll the text down">&#9660;</button></div>
           <div class="edwrap"><div class="linehi" id="linehi" aria-hidden="true" hidden></div><div class="backdrop" id="backdrop" aria-hidden="true"></div><textarea id="ed" aria-label="Document text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter"></textarea></div>
           <div class="fmtpreview" id="fmtpreview" role="region" aria-label="Formatted document preview" tabindex="0"></div>
@@ -4826,7 +4839,7 @@ function legalCards(){return legalRead()[curId]||[]}
 function legalRender(){
  const host=$('legalCards');host.replaceChildren();
  legalCards().forEach((card,i)=>{
-  const box=document.createElement('fieldset');const legend=document.createElement('legend');legend.textContent=card.name||'Authority';box.append(legend);
+  const box=document.createElement('section');box.className='legal-card';const legend=document.createElement('h3');legend.textContent=card.name||'Authority';box.append(legend);
   for(const [key,label] of [['name','Authority name'],['citation','Citation'],['court','Court or agency'],['date','Date'],['url','Source URL'],['issue','Issue'],['quote','Exact quotation'],['pin','Page or paragraph'],['notes','Why it matters']]){
    const l=document.createElement('label');l.style.display='block';l.textContent=label+' ';const input=document.createElement(key==='quote'||key==='notes'?'textarea':'input');input.value=card[key]||'';input.style.cssText='width:100%;min-height:44px;box-sizing:border-box';input.onchange=()=>{const all=legalRead();all[curId][i][key]=input.value;legalWrite(all)};l.append(input);box.append(l);
   }
