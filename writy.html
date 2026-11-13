@@ -808,7 +808,7 @@ html.lanceos-embedded #startmenu{display:none !important}
           <div class="sughead"><span id="sugHint">Next word</span><span class="tabhint">Tab takes the first word</span></div>
           <div class="sugrow" id="sugrow"></div>
         </section>
-        <section class="editor">
+        <details id="legalPanel" style="padding:8px 16px;max-height:45vh;overflow:auto;border-bottom:1px solid var(--line)"><summary style="cursor:pointer;min-height:44px">Legal research and draft review</summary><p>Authorities are saved on this device, separately from document backups. Select draft text before linking a passage.</p><button type="button" id="legalAdd">Add authority</button> <button type="button" id="legalReview">Review draft</button> <button type="button" id="legalBackup">Download research backup</button> <label>Restore research <input type="file" id="legalRestore" accept="application/json"></label><div id="legalCards"></div><div id="legalResults" role="status"></div></details><section class="editor">
           <div class="edscroll" aria-label="Scroll the text"><button class="act" data-do="edup" aria-label="Scroll the text up">&#9650;</button><button class="act" data-do="eddown" aria-label="Scroll the text down">&#9660;</button></div>
           <div class="edwrap"><div class="linehi" id="linehi" aria-hidden="true" hidden></div><div class="backdrop" id="backdrop" aria-hidden="true"></div><textarea id="ed" aria-label="Document text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter"></textarea></div>
           <div class="fmtpreview" id="fmtpreview" role="region" aria-label="Formatted document preview" tabindex="0"></div>
@@ -4819,7 +4819,35 @@ function copyText(text,okMsg){
   const fb=()=>msg('Could not copy. Try the file option instead.');
   try{navigator.clipboard.writeText(text).then(()=>msg(okMsg),fb)}catch(e){fb()}
 }
+/* Legal research is scoped by document ID and backed up independently. */
+function legalRead(){return S.get('writy.legal',{})}
+function legalWrite(all){if(!S.set('writy.legal',all)){msg('Research could not be saved. Download a backup before closing.');return false}return true}
+function legalCards(){return legalRead()[curId]||[]}
+function legalRender(){
+ const host=$('legalCards');host.replaceChildren();
+ legalCards().forEach((card,i)=>{
+  const box=document.createElement('fieldset');const legend=document.createElement('legend');legend.textContent=card.name||'Authority';box.append(legend);
+  for(const [key,label] of [['name','Authority name'],['citation','Citation'],['court','Court or agency'],['date','Date'],['url','Source URL'],['issue','Issue'],['quote','Exact quotation'],['pin','Page or paragraph'],['notes','Why it matters']]){
+   const l=document.createElement('label');l.style.display='block';l.textContent=label+' ';const input=document.createElement(key==='quote'||key==='notes'?'textarea':'input');input.value=card[key]||'';input.style.cssText='width:100%;min-height:44px;box-sizing:border-box';input.onchange=()=>{const all=legalRead();all[curId][i][key]=input.value;legalWrite(all)};l.append(input);box.append(l);
+  }
+  const status=document.createElement('p');status.textContent=card.passage?'Linked passage: '+card.passage:'No linked passage';box.append(status);
+  const button=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.minHeight='44px';b.onclick=fn;box.append(b)};
+  button('Link selected passage',()=>{const passage=legalSelection;if(!passage){msg('Select text in your draft first.');return}const all=legalRead();all[curId][i].passage=passage;legalWrite(all);legalRender()});
+  button('Find passage',()=>{const at=ta.value.indexOf(card.passage||'');if(!card.passage||at<0){msg('Passage has changed or is missing. Select it again to relink.');return}ta.focus();ta.setSelectionRange(at,at+card.passage.length);msg('Passage located in the plain text draft.');});
+  button('Remove authority',()=>{if(!confirm('Remove this authority card?'))return;const all=legalRead();all[curId].splice(i,1);legalWrite(all);legalRender()});host.append(box);
+ });
+}
+let legalSelection='';
+document.addEventListener('selectionchange',()=>{const selected=document.activeElement===ta?ta.value.slice(ta.selectionStart,ta.selectionEnd):((window.getSelection()?.anchorNode&&$('richEditor').contains(window.getSelection().anchorNode))?String(window.getSelection()):'');if(selected)legalSelection=selected});
+$('legalPanel').addEventListener('toggle',legalRender);
+$('legalAdd').onclick=()=>{const all=legalRead();(all[curId]||=[]).push({name:'New authority'});if(legalWrite(all))legalRender()};
+function legalReview(){const cards=legalCards(),issues=[];if(/\[(?:TODO|CITE|citation needed)[^\]]*\]|\b(?:TODO|TK)\b/i.test(ta.value))issues.push('Unresolved citation or drafting placeholders.');cards.forEach(c=>{if(!c.citation)issues.push((c.name||'Authority')+': citation missing.');if(c.quote&&!c.pin)issues.push((c.name||'Authority')+': quotation needs a pinpoint.');if(c.passage&&!ta.value.includes(c.passage))issues.push((c.name||'Authority')+': linked passage changed or missing.');});return issues}
+$('legalReview').onclick=()=>{$('legalResults').textContent=[...legalReview(),'Manual check: confirm every legal proposition has support, verify quotations against sources, and check authority validity. Automated review cannot establish legal accuracy.'].join(' ')};
+$('legalBackup').onclick=()=>saveAs('writy-research.json',JSON.stringify({version:1,research:legalRead()},null,2),'application/json');
+$('legalRestore').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());if(data.version!==1||!data.research||Object.values(data.research).some(v=>!Array.isArray(v)||v.some(c=>!c||typeof c!=='object'||Object.values(c).some(x=>typeof x!=='string'))))throw Error();if(confirm('Replace saved research with this backup?')){legalWrite(data.research);legalRender()}}catch(err){msg('Invalid research backup.')}e.target.value=''};
+let legalLastId=curId;setInterval(()=>{if(curId!==legalLastId){legalLastId=curId;legalSelection='';$('legalResults').textContent='';legalRender()}},500);
 function exportDoc(kind){
+  if(legalCards().length&&!confirm('Legal review: '+(legalReview().join(' ')||'No missing card fields found.')+' Verify citations, quotations, and authority validity before use. Export now?'))return;
   const d=curDoc();d.text=ta.value;
   if(!d.text.trim()){msg('This document is empty.');return}
   const title=d.title||'Untitled';
